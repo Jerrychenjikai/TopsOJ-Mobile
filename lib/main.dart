@@ -46,7 +46,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchMarkdown() async {
-    final url = Uri.parse('https://topsoj.com/api/publicproblem?id=00_aime_II_p01');
+    final url = Uri.parse('https://topsoj.com/api/publicproblem?id=20_aime_II_p01');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -113,7 +113,7 @@ class _HomePageState extends State<HomePage> {
           child: RichText(text: TextSpan(style: TextStyle(color: Colors.black), children: spans)),
         ));
       } else {
-        widgets.add(MarkdownBody(data: line));
+        widgets.add(MarkdownBody(data: line, size: 25));
       }
     }
 
