@@ -27,8 +27,7 @@ class TopsOJ extends StatelessWidget {
   }
 }
 
-// 公共函数：验证API KEY
-Future<int> checkApiKeyValid(String apiKey) async {
+Future<Map<String, dynamic>> checkApiKeyValid(String apiKey) async {
   final uri = Uri.parse('https://topsoj.com/api/confirmlogin');
 
   try {
@@ -36,12 +35,30 @@ Future<int> checkApiKeyValid(String apiKey) async {
       uri,
       headers: {'Authorization': 'Bearer $apiKey'},
     );
-    return response.statusCode;
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      print(jsonData);
+      return {
+        'statusCode': 200,
+        'username': jsonData['data']['username'],
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'username': null,
+      };
+    }
   } catch (e) {
-    return -1;
+    return {
+      'statusCode': -1,
+      'username': null,
+    };
   }
 }
 
+
+// 初始页：根据登录状态跳转
 class RootPage extends StatelessWidget {
   const RootPage({super.key});
 
@@ -72,80 +89,7 @@ class RootPage extends StatelessWidget {
   }
 }
 
-class MainPage extends StatefulWidget {
-  const MainPage({super.key});
-
-  @override
-  _MainPageState createState() => _MainPageState();
-}
-
-class _MainPageState extends State<MainPage> {
-  String _response = '';
-
-  Future<void> _makeRequest() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? apiKey = prefs.getString('apiKey');
-
-    if (apiKey == null || apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API Key Not Found')),
-      );
-      return;
-    }
-
-    int isValid = await checkApiKeyValid(apiKey);
-
-    setState(() {
-      _response = isValid == 200
-          ? 'API Key Valid'
-          : 'API Key Invalid: ${isValid.toString()}';
-    });
-  }
-
-  Future<void> _logout() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('apiKey'); // 删除保存的apiKey
-
-    // 跳转到登录页，并清空之前的页面堆栈
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => LoginPage()),
-      (route) => false,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home Page'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ElevatedButton(
-              onPressed: _makeRequest,
-              child: const Text('Request'),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(_response, style: const TextStyle(fontSize: 16)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+// 登录页
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -165,7 +109,9 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    int isValid = await checkApiKeyValid(apiKey);
+    final result = await checkApiKeyValid(apiKey);
+    final int isValid = result['statusCode'];
+    final String? username = result['username'];
 
     if (isValid != 200) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -235,8 +181,119 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
+// 主页面
+class MainPage extends StatefulWidget {
+  const MainPage({super.key});
+
+  @override
+  _MainPageState createState() => _MainPageState();
+}
+
+class _MainPageState extends State<MainPage> {
+  String _response = '';
+  final TextEditingController _problemIdController = TextEditingController();
+
+  Future<void> _makeRequest() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? apiKey = prefs.getString('apiKey');
+
+    if (apiKey == null || apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('API Key Not Found')),
+      );
+      return;
+    }
+
+    final result = await checkApiKeyValid(apiKey);
+    final int statusCode = result['statusCode'];
+    final String? username = result['username'];
+
+    setState(() {
+      if (statusCode == 200) {
+        _response = 'API Key Valid\nUsername: $username';
+      } else {
+        _response = 'API Key Invalid: $statusCode';
+      }
+    });
+  }
+
+  void _gotoProblem() {
+    final String problemId = _problemIdController.text.trim();
+    if (problemId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a problem ID')),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProblemPage(problemId: problemId),
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('apiKey');
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home Page'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: _problemIdController,
+              decoration: const InputDecoration(
+                labelText: 'Enter Problem ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _gotoProblem,
+              child: const Text('Go to Problem'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _makeRequest,
+              child: const Text('Request Login Status'),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(_response, style: const TextStyle(fontSize: 16)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// 题目页面
 class ProblemPage extends StatefulWidget {
-  const ProblemPage({super.key});
+  final String problemId;
+
+  const ProblemPage({super.key, required this.problemId});
 
   @override
   State<ProblemPage> createState() => _ProblemPageState();
@@ -255,17 +312,17 @@ class _ProblemPageState extends State<ProblemPage> {
 
   Future<void> _fetchMarkdown() async {
     try {
-      final url = Uri.parse('https://topsoj.com/api/publicproblem?id=20_aime_II_p01');
+      final url = Uri.parse('https://topsoj.com/api/publicproblem?id=${widget.problemId}');
       final response = await http.get(url);
+      final Map<String, dynamic> jsonData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonData = jsonDecode(response.body);
         setState(() {
           _markdownData = jsonData['data']['description_md'] ?? '';
         });
       } else {
         setState(() {
-          _markdownData = 'Loading failed: ${response.statusCode}';
+          _markdownData = 'Loading failed: ${response.statusCode} ${jsonData['message']}';
         });
       }
     } catch (e) {
@@ -344,7 +401,11 @@ class _ProblemPageState extends State<ProblemPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: const Text('TopsOJ Problem Page'),
+        title: Text('Problem: ${widget.problemId}'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Column(
         children: [
