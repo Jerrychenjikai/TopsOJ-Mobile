@@ -199,7 +199,7 @@ class _MainPageState extends State<MainPage> {
 
     if (apiKey == null || apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API Key Not Found')),
+        const SnackBar(content: Text('API Key Not Found, Log In Again')),
       );
       return;
     }
@@ -303,6 +303,7 @@ class _ProblemPageState extends State<ProblemPage> {
   final TextEditingController _controller = TextEditingController();
   String _answer = "";
   String _markdownData = "";
+  String _problemName = "";
 
   @override
   void initState() {
@@ -319,6 +320,7 @@ class _ProblemPageState extends State<ProblemPage> {
       if (response.statusCode == 200) {
         setState(() {
           _markdownData = jsonData['data']['description_md'] ?? '';
+          _problemName = jsonData['data']['problem_name'] ?? "";
         });
       } else {
         setState(() {
@@ -332,10 +334,74 @@ class _ProblemPageState extends State<ProblemPage> {
     }
   }
 
-  void _submit() {
+  Future<Map<String, dynamic>> submit_problem(answer) async {
+    var url = Uri.parse('https://topsoj.com/api/submitproblem');
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? apiKey = prefs.getString('apiKey');
+
+    if (apiKey == null || apiKey.isEmpty) {
+      return {
+        'statusCode': -1,
+        'data': "API Key Not Found. Log In Again"
+      };
+    }
+
+    // 表单数据
+    Map<String, String> formData = {
+      'problem_id': widget.problemId,
+      'answer': answer,
+    };
+
+    // 构造请求头
+    var headers = {'Authorization': 'Bearer $apiKey'};
+
+    // 发送 POST 请求
+    var response = await http.post(
+      url,
+      headers: headers,
+      body: formData, // http 库会自动进行 url 编码
+      encoding: Encoding.getByName('utf-8'),
+    );
+
+    // 处理响应
+    final jsonData = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return {
+        "statusCode": 200,
+        'data': jsonData['data']
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'data': jsonData['message']
+      };
+    }
+  }
+
+  void _submit() async {
+    final response = await submit_problem(_answer);
     setState(() {
       _answer = _controller.text;
       _controller.clear();
+
+      if(response['statusCode']==200){
+        if(response['data']['check']){
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Your answer is correct')),
+          );
+        }
+        else{
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Your answer is incorrect')),
+          );
+        }
+      }
+      else{
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Submission failed: ${response['statusCode']} ${response['data']}')),
+        );
+      }
     });
   }
 
@@ -401,7 +467,7 @@ class _ProblemPageState extends State<ProblemPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text('Problem: ${widget.problemId}'),
+        title: Text('Problem: ${_problemName}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
