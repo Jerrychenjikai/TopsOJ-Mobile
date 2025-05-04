@@ -320,7 +320,7 @@ class _ProblemPageState extends State<ProblemPage> {
       if (response.statusCode == 200) {
         setState(() {
           _markdownData = jsonData['data']['description_md'] ?? '';
-          _problemName = jsonData['data']['problem_name'] ?? "";
+          _problemName = jsonData['data']['problem_name'] ?? '';
         });
       } else {
         setState(() {
@@ -334,125 +334,132 @@ class _ProblemPageState extends State<ProblemPage> {
     }
   }
 
-  Future<Map<String, dynamic>> submit_problem(answer) async {
+  Future<Map<String, dynamic>> submitProblem(String answer) async {
     var url = Uri.parse('https://topsoj.com/api/submitproblem');
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? apiKey = prefs.getString('apiKey');
 
     if (apiKey == null || apiKey.isEmpty) {
-      return {
-        'statusCode': -1,
-        'data': "API Key Not Found. Log In Again"
-      };
+      return {'statusCode': -1, 'data': 'API Key Not Found. Log In Again'};
     }
 
-    // 表单数据
-    Map<String, String> formData = {
+    var headers = {'Authorization': 'Bearer $apiKey'};
+    var response = await http.post(url, headers: headers, body: {
       'problem_id': widget.problemId,
       'answer': answer,
-    };
-
-    // 构造请求头
-    var headers = {'Authorization': 'Bearer $apiKey'};
-
-    // 发送 POST 请求
-    var response = await http.post(
-      url,
-      headers: headers,
-      body: formData, // http 库会自动进行 url 编码
-      encoding: Encoding.getByName('utf-8'),
-    );
-
-    // 处理响应
+    });
     final jsonData = jsonDecode(response.body);
     if (response.statusCode == 200) {
-      return {
-        "statusCode": 200,
-        'data': jsonData['data']
-      };
+      return {'statusCode': 200, 'data': jsonData['data']};
     } else {
-      return {
-        'statusCode': response.statusCode,
-        'data': jsonData['message']
-      };
+      return {'statusCode': response.statusCode, 'data': jsonData['message']};
     }
   }
 
   void _submit() async {
-    final response = await submit_problem(_answer);
-    setState(() {
-      _answer = _controller.text;
-      _controller.clear();
-
-      if(response['statusCode']==200){
-        if(response['data']['check']){
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Your answer is correct')),
-          );
-        }
-        else{
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Your answer is incorrect')),
-          );
-        }
-      }
-      else{
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Submission failed: ${response['statusCode']} ${response['data']}')),
-        );
-      }
-    });
+    _answer = _controller.text.trim();
+    _controller.clear();
+    final response = await submitProblem(_answer);
+    if (response['statusCode'] == 200) {
+      final passed = response['data']['check'] as bool;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(passed ? 'Your answer is correct' : 'Your answer is incorrect'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Submission failed: ${response['statusCode']} ${response['data']}'),
+        ),
+      );
+    }
   }
 
+  // 解析 markdown 中的 latex
   List<Widget> _parseMarkdownWithLatex(String raw) {
     final widgets = <Widget>[];
-    final regexInline = RegExp(r'\$(.+?)\$');
     final regexBlock = RegExp(r'\$\$(.+?)\$\$', dotAll: true);
+    int lastEnd = 0;
+    raw = raw.replaceAll('<br>', '\n');
 
-    String processed = raw.replaceAllMapped(regexBlock, (match) {
+    for (final match in regexBlock.allMatches(raw)) {
+      if (match.start > lastEnd) {
+        final normalText = raw.substring(lastEnd, match.start);
+        widgets.addAll(_processInlineMath(normalText));
+      }
+
       widgets.add(
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Center(
-            child: Math.tex(match.group(1)!, textStyle: const TextStyle(fontSize: 18)),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Math.tex(
+              match.group(1)!,
+              textStyle: const TextStyle(color: Colors.black87, fontSize: 24),
+            ),
           ),
         ),
       );
-      return '';
-    });
 
-    for (var line in processed.split('\n')) {
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < raw.length) {
+      widgets.addAll(_processInlineMath(raw.substring(lastEnd)));
+    }
+
+    return widgets;
+  }
+
+  List<Widget> _processInlineMath(String text) {
+    final widgets = <Widget>[];
+    final regexInline = RegExp(r'\$(.+?)\$');
+
+    for (var line in text.split('\n')) {
+      if (line.trim().isEmpty) {
+        widgets.add(const SizedBox(height: 12));
+        continue;
+      }
+
       final spans = <InlineSpan>[];
-      int lastMatchEnd = 0;
+      int lastEnd = 0;
 
       for (final match in regexInline.allMatches(line)) {
-        if (match.start > lastMatchEnd) {
-          spans.add(TextSpan(text: line.substring(lastMatchEnd, match.start)));
+        if (match.start > lastEnd) {
+          spans.add(TextSpan(
+            text: line.substring(lastEnd, match.start),
+            style: const TextStyle(color: Colors.black87, fontSize: 20),
+          ));
         }
+
         spans.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: Math.tex(match.group(1)!, textStyle: const TextStyle(fontSize: 16)),
-        ));
-        lastMatchEnd = match.end;
-      }
-
-      if (lastMatchEnd < line.length) {
-        spans.add(TextSpan(text: line.substring(lastMatchEnd)));
-      }
-
-      if (spans.isNotEmpty) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-            child: RichText(
-              text: TextSpan(style: const TextStyle(color: Colors.black), children: spans),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Math.tex(
+              match.group(1)!,
+              textStyle: const TextStyle(color: Colors.black87, fontSize: 20),
             ),
           ),
-        );
-      } else {
-        widgets.add(MarkdownBody(data: line));
+        ));
+
+        lastEnd = match.end;
       }
+
+      if (lastEnd < line.length) {
+        spans.add(TextSpan(
+          text: line.substring(lastEnd),
+          style: const TextStyle(color: Colors.black87, fontSize: 20),
+        ));
+      }
+
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          child: RichText(text: TextSpan(children: spans)),
+        ),
+      );
     }
 
     return widgets;
@@ -462,21 +469,20 @@ class _ProblemPageState extends State<ProblemPage> {
   Widget build(BuildContext context) {
     final content = _markdownData.isEmpty
         ? const Center(child: CircularProgressIndicator())
-        : ListView(children: _parseMarkdownWithLatex(_markdownData));
+        : ListView(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            children: _parseMarkdownWithLatex(_markdownData),
+          );
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text('Problem: ${_problemName}'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: Text('Problem: $_problemName', style: const TextStyle(fontSize: 22)),
       ),
       body: Column(
         children: [
           Expanded(child: content),
-          Padding(
+          Container(
+            color: Colors.white,
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
@@ -486,7 +492,7 @@ class _ProblemPageState extends State<ProblemPage> {
                     decoration: const InputDecoration(
                       hintText: 'Answer',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                   ),
                 ),
