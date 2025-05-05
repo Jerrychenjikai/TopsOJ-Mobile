@@ -304,6 +304,10 @@ class _ProblemPageState extends State<ProblemPage> {
   String _answer = "";
   String _markdownData = "";
   String _problemName = "";
+  bool _canNxt = false;
+  bool _canPrev = false;
+  String _nxt = "";
+  String _prev = "";
 
   @override
   void initState() {
@@ -321,6 +325,10 @@ class _ProblemPageState extends State<ProblemPage> {
         setState(() {
           _markdownData = jsonData['data']['description_md'] ?? '';
           _problemName = jsonData['data']['problem_name'] ?? '';
+          _canNxt = jsonData['data']['can_next'];
+          _canPrev = jsonData['data']['can_prev'];
+          _nxt = jsonData['data']['nxt'].replaceFirst('/problem/', '');
+          _prev = jsonData['data']['prev'].replaceFirst('/problem/', '');
         });
       } else {
         setState(() {
@@ -481,6 +489,39 @@ class _ProblemPageState extends State<ProblemPage> {
       body: Column(
         children: [
           Expanded(child: content),
+          if (_canPrev || _canNxt)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  if (_canPrev)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => ProblemPage(problemId: _prev),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text("Previous"),
+                    ),
+                  if (_canNxt)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => ProblemPage(problemId: _nxt),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text("Next"),
+                    ),
+                ],
+              ),
+            ),
           Container(
             color: Colors.white,
             padding: const EdgeInsets.all(16),
