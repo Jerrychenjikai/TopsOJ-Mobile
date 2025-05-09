@@ -66,7 +66,8 @@ class RootPage extends StatelessWidget {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String apiKey = prefs.getString('apiKey') ?? '';
     if (apiKey.isEmpty) return false;
-    return await checkApiKeyValid(apiKey) == 200;
+    final response = await checkApiKeyValid(apiKey);
+    return response['statusCode'] == 200;
   }
 
   @override
@@ -308,11 +309,32 @@ class _ProblemPageState extends State<ProblemPage> {
   bool _canPrev = false;
   String _nxt = "";
   String _prev = "";
+  var _isSolved;
 
   @override
   void initState() {
     super.initState();
     _fetchMarkdown();
+    _checkIfSolved();
+  }
+
+  Future<void> _checkIfSolved() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? apiKey = prefs.getString('apiKey');
+
+    if (apiKey == null || apiKey.isEmpty) return;
+
+    final url = Uri.parse('https://topsoj.com/api/problemsolved?id=${widget.problemId}');
+    final response = await http.get(url, headers: {
+      'Authorization': 'Bearer $apiKey',
+    });
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      setState(() {
+        _isSolved = jsonData['data']['solved'] == true;
+      });
+    }
   }
 
   Future<void> _fetchMarkdown() async {
@@ -484,7 +506,26 @@ class _ProblemPageState extends State<ProblemPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Problem: $_problemName', style: const TextStyle(fontSize: 22)),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '$_problemName',
+                style: const TextStyle(fontSize: 22),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (_isSolved)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Image.network(
+                  'https://topsoj.com/assets/images/checkmark.png',
+                  width: 24,
+                  height: 24,
+                ),
+              ),
+          ],
+        ),
       ),
       body: Column(
         children: [
