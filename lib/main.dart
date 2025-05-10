@@ -5,8 +5,11 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart'; // 导入库
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  PackageInfo packageInfo = await PackageInfo.fromPlatform(); // 可选，不用也行
   runApp(const TopsOJ());
 }
 
@@ -212,6 +215,8 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       if (statusCode == 200) {
         _response = 'API Key Valid\nUsername: $username';
+      } else if (statusCode == 429){
+        _response = "Too many requests. Wait 1 minute";
       } else {
         _response = 'API Key Invalid: $statusCode';
       }
@@ -275,7 +280,7 @@ class _MainPageState extends State<MainPage> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _makeRequest,
-              child: const Text('Request Login Status'),
+              child: const Text('Login Status'),
             ),
             const SizedBox(height: 20),
             Expanded(
