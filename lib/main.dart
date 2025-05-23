@@ -225,6 +225,7 @@ class _MainPageState extends State<MainPage> {
 
   void _gotoProblem() {
     final String problemId = _problemIdController.text.trim();
+    print("problem id:" + problemId);
     if (problemId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a problem ID')),
@@ -326,7 +327,8 @@ class _ProblemPageState extends State<ProblemPage> {
     final markdownJson = jsonDecode(markdownResponse.body);
 
     if (markdownResponse.statusCode != 200) {
-      throw Exception("Markdown load failed: ${markdownResponse.statusCode} ${markdownJson['message']}");
+      _markdownData="Markdown load failed: ${markdownResponse.statusCode} ${markdownJson['message']}";
+      return;
     }
 
     // fetch isSolved
@@ -390,11 +392,64 @@ class _ProblemPageState extends State<ProblemPage> {
     }
   }
 
+  List<Widget> _parseContent(String raw) {
+    print(raw);
+    // First, replace <br> with newline
+    raw = raw.replaceAll('<br>', '\n');
+    raw = raw.replaceAll('<center>', '');
+    raw = raw.replaceAll('</center>', '\n');
+
+    final widgets = <Widget>[];
+    final imgRegex = RegExp(
+      r'<img[^>]*src="([^"]+)"[^>]*?width="(\d+)(?:px)?"[^>]*?>',
+      caseSensitive: false,
+    );
+
+    int lastEnd = 0;
+    for (final match in imgRegex.allMatches(raw)) {
+      // Process text before image
+      if (match.start > lastEnd) {
+        widgets.addAll(_parseMarkdownWithLatex(raw.substring(lastEnd, match.start)));
+      }
+      // Add image widget
+      final src = match.group(1)!;
+      final final_src;
+
+      final width = match.group(2) != null ? double.tryParse(match.group(2)!) : null;
+
+      if(src[0]=='/'){
+        final_src="https://topsoj.com"+src;
+      }
+      else{
+        final_src=src;
+      }
+
+      print(final_src);
+      
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Image.network(
+            final_src,
+            width: width,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+      lastEnd = match.end;
+    }
+    // Remaining content after last image
+    if (lastEnd < raw.length) {
+      widgets.addAll(_parseMarkdownWithLatex(raw.substring(lastEnd)));
+    }
+    return widgets;
+  }
+
   List<Widget> _parseMarkdownWithLatex(String raw) {
     final widgets = <Widget>[];
+    // Regex for block-level $$...$$ including newlines
     final regexBlock = RegExp(r'\$\$(.+?)\$\$', dotAll: true);
     int lastEnd = 0;
-    raw = raw.replaceAll('<br>', '\n');
 
     for (final match in regexBlock.allMatches(raw)) {
       if (match.start > lastEnd) {
@@ -414,59 +469,51 @@ class _ProblemPageState extends State<ProblemPage> {
           ),
         ),
       );
-
       lastEnd = match.end;
     }
-
     if (lastEnd < raw.length) {
       widgets.addAll(_processInlineMath(raw.substring(lastEnd)));
     }
-
     return widgets;
   }
 
   List<Widget> _processInlineMath(String text) {
     final widgets = <Widget>[];
-    final regexInline = RegExp(r'\$(.+?)\$');
+    // Support inline math with newlines via dotAll
+    final regexInline = RegExp(r'\$(.+?)\$', dotAll: true);
 
-    for (var line in text.split('\n')) {
-      if (line.trim().isEmpty) {
+    for (var segment in text.split('\n')) {
+      if (segment.trim().isEmpty) {
         widgets.add(const SizedBox(height: 12));
         continue;
       }
-
       final spans = <InlineSpan>[];
       int lastEnd = 0;
-
-      for (final match in regexInline.allMatches(line)) {
+      for (final match in regexInline.allMatches(segment)) {
         if (match.start > lastEnd) {
           spans.add(TextSpan(
-            text: line.substring(lastEnd, match.start),
+            text: segment.substring(lastEnd, match.start),
             style: const TextStyle(color: Colors.black87, fontSize: 20),
           ));
         }
-
         spans.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Math.tex(
-              match.group(1)!,
+              match.group(1)!.trim(),
               textStyle: const TextStyle(color: Colors.black87, fontSize: 20),
             ),
           ),
         ));
-
         lastEnd = match.end;
       }
-
-      if (lastEnd < line.length) {
+      if (lastEnd < segment.length) {
         spans.add(TextSpan(
-          text: line.substring(lastEnd),
+          text: segment.substring(lastEnd),
           style: const TextStyle(color: Colors.black87, fontSize: 20),
         ));
       }
-
       widgets.add(
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -474,7 +521,6 @@ class _ProblemPageState extends State<ProblemPage> {
         ),
       );
     }
-
     return widgets;
   }
 
@@ -485,14 +531,14 @@ class _ProblemPageState extends State<ProblemPage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return Scaffold(
-            appBar: AppBar(title: Text("Loading...")),
-            body: Center(child: CircularProgressIndicator()),
+            appBar: AppBar(title: const Text("Loading...")),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
-
+        // Use _parseContent to build the content
         final content = ListView(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          children: _parseMarkdownWithLatex(_markdownData),
+          children: _parseContent(_markdownData),
         );
 
         return Scaffold(
