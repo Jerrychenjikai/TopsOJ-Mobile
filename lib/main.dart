@@ -5,11 +5,11 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:package_info_plus/package_info_plus.dart'; // 导入库
+import 'package:package_info_plus/package_info_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  PackageInfo packageInfo = await PackageInfo.fromPlatform(); // 可选，不用也行
+  PackageInfo packageInfo = await PackageInfo.fromPlatform();
   runApp(const TopsOJ());
 }
 
@@ -197,6 +197,48 @@ class _MainPageState extends State<MainPage> {
   String _response = '';
   final TextEditingController _problemIdController = TextEditingController();
 
+  final List<Map<String, dynamic>> _problem_ids = [
+    {'id': "02_amc10A_p01", 'name': '2002 AMC 10A problem 1'},
+    {'id': "03_amc12A_p01", 'name': '2003 AMC 12A problem 1'},
+    {'id': "04_amc12A_p02", 'name': '2004 AMC 12A problem 2'},
+  ];//replace this with function that requests for problem list
+
+  void _gotoProblem([String? id]) {
+    final String problemId = (id ?? _problemIdController.text.trim());
+    print("problem id:" + problemId);
+    if (problemId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a problem ID')),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProblemPage(problemId: problemId),
+      ),
+    );
+  }
+
+  List<Widget> _render() {
+    List<Widget> widgets = [];
+
+    for (Map<String, dynamic> problem in _problem_ids) {
+      widgets.add(
+        ListTile(
+          title: Text(problem['name']),
+          subtitle: Text(problem['id']),
+          leading: Icon(Icons.book),
+          onTap: () {
+            _gotoProblem(problem['id']);
+          },
+        ),
+      );
+    }
+
+    return widgets;
+  }
+  
   Future<void> _makeRequest() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? apiKey = prefs.getString('apiKey');
@@ -221,23 +263,6 @@ class _MainPageState extends State<MainPage> {
         _response = 'API Key Invalid: $statusCode';
       }
     });
-  }
-
-  void _gotoProblem() {
-    final String problemId = _problemIdController.text.trim();
-    print("problem id:" + problemId);
-    if (problemId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a problem ID')),
-      );
-      return;
-    }
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProblemPage(problemId: problemId),
-      ),
-    );
   }
 
   Future<void> _logout() async {
@@ -278,6 +303,8 @@ class _MainPageState extends State<MainPage> {
               onPressed: _gotoProblem,
               child: const Text('Go to Problem'),
             ),
+
+            ..._render(),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _makeRequest,
