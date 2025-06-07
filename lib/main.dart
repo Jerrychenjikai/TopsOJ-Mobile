@@ -196,12 +196,45 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   String _response = '';
   final TextEditingController _problemIdController = TextEditingController();
+  int _page=1;
+  int _problems_cnt=0;
 
-  final List<Map<String, dynamic>> _problem_ids = [
+  List<Map<String, dynamic>> _problem_ids = [
     {'id': "02_amc10A_p01", 'name': '2002 AMC 10A problem 1'},
     {'id': "03_amc12A_p01", 'name': '2003 AMC 12A problem 1'},
     {'id': "04_amc12A_p02", 'name': '2004 AMC 12A problem 2'},
   ];//replace this with function that requests for problem list
+
+  Future<void> _getProblems() async {
+    var url = Uri.parse('https://topsoj.com/api/problems');
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? apiKey = prefs.getString('apiKey');
+
+    if (apiKey == null || apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("API Key Not Found. Log In Again")),
+      );
+      return;
+    }
+
+    var headers = {'Authorization': 'Bearer $apiKey'};
+    var response = await http.post(url, headers: headers, body: {
+      'page': '${_page}',
+      'title': _problemIdController.text.trim(),
+    });
+
+    final jsonData = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      _problem_ids = jsonData['data']['problems'];
+      _problems_cnt = jsonData['data']['length'];
+      return;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Search Error: ${response.statusCode} ${jsonData['message']}')),
+      );
+      return;
+    }
+  }
 
   void _gotoProblem([String? id]) {
     final String problemId = (id ?? _problemIdController.text.trim());
@@ -294,14 +327,14 @@ class _MainPageState extends State<MainPage> {
             TextField(
               controller: _problemIdController,
               decoration: const InputDecoration(
-                labelText: 'Enter Problem ID',
+                labelText: 'Enter Problem Name/ID',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: _gotoProblem,
-              child: const Text('Go to Problem'),
+              onPressed: _getProblems,
+              child: const Text('Search'),
             ),
 
             ..._render(),
