@@ -197,9 +197,9 @@ class _MainPageState extends State<MainPage> {
   String _response = '';
   final TextEditingController _problemIdController = TextEditingController();
   int _page=1;
-  int _problems_cnt=0;
+  int _problems_cnt=3;
 
-  List<Map<String, dynamic>> _problem_ids = [
+  List<dynamic> _problem_ids = [
     {'id': "02_amc10A_p01", 'name': '2002 AMC 10A problem 1'},
     {'id': "03_amc12A_p01", 'name': '2003 AMC 12A problem 1'},
     {'id': "04_amc12A_p02", 'name': '2004 AMC 12A problem 2'},
@@ -225,8 +225,12 @@ class _MainPageState extends State<MainPage> {
 
     final jsonData = jsonDecode(response.body);
     if (response.statusCode == 200) {
-      _problem_ids = jsonData['data']['problems'];
-      _problems_cnt = jsonData['data']['length'];
+      setState((){
+        _problem_ids = jsonData['data']['problems'];
+        print(_problem_ids);
+        print(jsonData['data']['length'][0]['cnt']);
+        _problems_cnt = jsonData['data']['length'][0]['cnt'];
+      });
       return;
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -322,34 +326,80 @@ class _MainPageState extends State<MainPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _problemIdController,
-              decoration: const InputDecoration(
-                labelText: 'Enter Problem Name/ID',
-                border: OutlineInputBorder(),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 文本框 + Search 按钮一行
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _problemIdController,
+                      decoration: const InputDecoration(
+                        labelText: 'Enter Problem Name/ID',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      _page=1;
+                      _getProblems();
+                    },
+                    child: const Icon(Icons.search),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _getProblems,
-              child: const Text('Search'),
-            ),
+            
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_page > 1)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _page = _page - 1;
+                          _getProblems();
+                        });
+                      },
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text("Previous Page"),
+                    )
+                  else
+                    const SizedBox(width: 140), // 占位对齐
 
-            ..._render(),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _makeRequest,
-              child: const Text('Login Status'),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(_response, style: const TextStyle(fontSize: 16)),
+                  // 中间页数文字
+                  Text('Page $_page/${(_problems_cnt/10).ceil()}', style: const TextStyle(fontSize: 16)),
+
+                  if (_page * 10 < _problems_cnt)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _page = _page + 1;
+                          _getProblems();
+                        });
+                      },
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text("Next Page"),
+                    )
+                  else
+                    const SizedBox(width: 140), // 占位对齐
+                ],
               ),
-            ),
-          ],
+
+              ..._render(),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _makeRequest,
+                child: const Text('Login Status'),
+              ),
+              const SizedBox(height: 20),
+              Text(_response, style: const TextStyle(fontSize: 16)),
+            ],
+          ),
         ),
       ),
     );
