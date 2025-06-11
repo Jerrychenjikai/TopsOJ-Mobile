@@ -353,40 +353,38 @@ class _MainPageState extends State<MainPage> {
                 ],
               ),
             
-              const SizedBox(height: 12),
+              const SizedBox(height: 15),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (_page > 1)
-                    ElevatedButton.icon(
+                    ElevatedButton(
                       onPressed: () {
                         setState(() {
                           _page = _page - 1;
                           _getProblems();
                         });
                       },
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text("Previous Page"),
+                      child: const Icon(Icons.arrow_back),
                     )
                   else
-                    const SizedBox(width: 140), // 占位对齐
+                    const SizedBox(width: 60), // 占位对齐
 
                   // 中间页数文字
                   Text('Page $_page/${(_problems_cnt/10).ceil()}', style: const TextStyle(fontSize: 16)),
 
                   if (_page * 10 < _problems_cnt)
-                    ElevatedButton.icon(
+                    ElevatedButton(
                       onPressed: () {
                         setState(() {
                           _page = _page + 1;
                           _getProblems();
                         });
                       },
-                      icon: const Icon(Icons.arrow_forward),
-                      label: const Text("Next Page"),
+                      child: const Icon(Icons.arrow_forward),
                     )
                   else
-                    const SizedBox(width: 140), // 占位对齐
+                    const SizedBox(width: 60), // 占位对齐
                 ],
               ),
 
