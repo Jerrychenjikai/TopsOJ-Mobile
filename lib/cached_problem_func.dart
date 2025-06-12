@@ -67,9 +67,11 @@ Future<void> save_cached(List<Map<String, String>> cached) async{//save map to d
 
 
 
+
+
 //below are the actual function you are going to be using to cache problems
 
-Future<void> delcache(String problemId) async {//delete 
+Future<void> delcache(String problemId) async {//delete the cached problem (if cached)
     final String filename = problemId+'.md';
     await deleteMarkdown(filename);
 
@@ -78,7 +80,7 @@ Future<void> delcache(String problemId) async {//delete
     await save_cached(cached);
 }
 
-Future<void> cache(String problemId, String problemName, String markdownData) async{ 
+Future<void> cache(String problemId, String problemName, String markdownData) async{ //cache a problem
     Map<String, String> newproblem = {'id':problemId, 'name':problemName, 'answer':''}; 
     final String filename = problemId+'.md';
     await delcache(problemId); //delete to make sure no duplicates
@@ -87,4 +89,35 @@ Future<void> cache(String problemId, String problemName, String markdownData) as
     List<Map<String, String>> cached = await get_cached();
     cached.add(newproblem);
     await save_cached(cached);
+}
+
+Future<bool> is_cached(String problemId) async { //check if a problem is cached
+    List<Map<String, String>> problem = await get_cached();
+    return problem.any((f)=>f['id']==problemId);
+}
+
+Future<Map<String, String>> cached_info(String problemId) async { //obtain the information of a cached problem
+    if(await is_cached(problemId)){
+        List<Map<String, String>> problem = await get_cached();
+        problem = problem.where((f)=>f['id']==problemId).toList();
+
+        return problem[0];
+    }
+    return {};
+}
+
+Future<void> record_answer(String problemId, String answer) async {
+    if(await is_cached(problemId)){
+        List<Map<String, String>> problem = await get_cached();
+        
+        for(int i=0;i<problem.length;i++){
+            if(problem[i]['id']==problemId){
+                problem[i]['answer']=answer;
+                break;
+            }
+        }
+        await save_cached(problem);
+        return;
+    }
+    return;
 }
