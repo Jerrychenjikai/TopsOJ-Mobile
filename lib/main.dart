@@ -243,7 +243,6 @@ class _MainPageState extends State<MainPage> {
 
   void _gotoProblem([String? id]) {
     final String problemId = (id ?? _problemIdController.text.trim());
-    print("problem id:" + problemId);
     if (problemId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a problem ID')),
@@ -502,7 +501,6 @@ class _ProblemPageState extends State<ProblemPage> {
   }
 
   List<Widget> _parseContent(String raw) {
-    print(raw);
     // First, replace <br> with newline
     raw = raw.replaceAll('<br>', '\n');
     raw = raw.replaceAll('<center>', '');
@@ -532,8 +530,6 @@ class _ProblemPageState extends State<ProblemPage> {
       else{
         final_src=src;
       }
-
-      print(final_src);
       
       widgets.add(
         Padding(
@@ -672,6 +668,17 @@ class _ProblemPageState extends State<ProblemPage> {
           body: Column(
             children: [
               Expanded(child: content),
+              ElevatedButton(
+                onPressed: () async {
+                  await cache(widget.problemId, _problemName, _markdownData);
+                  print(await get_cached());
+                  print(await readMarkdown(widget.problemId+'.md'));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Problem Cached')),
+                  );
+                },
+                child: const Text('Cache this problem'),
+              ),
               if (_canPrev || _canNxt)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),

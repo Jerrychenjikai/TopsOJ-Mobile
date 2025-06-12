@@ -44,7 +44,8 @@ Future<void> deleteMarkdown(String filename) async {
 }
 
 
-Future<List<Map<String, String>>> get_cached() async{
+Future<List<Map<String, String>>> get_cached() async{ //get the list of questions cached.
+    //presumed: all files have a md file with its problem id as file name
     final prefs = await SharedPreferences.getInstance();
     final content = prefs.getString('cached problems') ?? "[]";
 
@@ -64,6 +65,10 @@ Future<void> save_cached(List<Map<String, String>> cached) async{//save map to d
     await prefs.setString('cached problems', content);
 }
 
+
+
+//below are the actual function you are going to be using to cache problems
+
 Future<void> delcache(String problemId) async {//delete 
     final String filename = problemId+'.md';
     await deleteMarkdown(filename);
@@ -73,7 +78,7 @@ Future<void> delcache(String problemId) async {//delete
     await save_cached(cached);
 }
 
-Future<void> cache(String problemId, String problemName, String markdownData) async{
+Future<void> cache(String problemId, String problemName, String markdownData) async{ 
     Map<String, String> newproblem = {'id':problemId, 'name':problemName, 'answer':''}; 
     final String filename = problemId+'.md';
     await delcache(problemId); //delete to make sure no duplicates
