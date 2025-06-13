@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:TopsOJ/cached_problem_func.dart';
+import 'package:TopsOJ/basic_func.dart';
 
 
 // 题目页面
@@ -29,20 +30,25 @@ class _ProblemPageState extends State<ProblemPage> {
   String _nxt = "";
   String _prev = "";
   bool _isSolved = false;
+  bool _isCached = false;
 
   Future<void> _loadProblemData() async {
+    _isCached = await is_cached(widget.problemId);
     final prefs = await SharedPreferences.getInstance();
     final apiKey = prefs.getString('apiKey') ?? "";
+    var markdownUrl;
+    var markdownResponse;
+    var markdownJson;
 
     // fetch markdown
-    final markdownUrl = Uri.parse('https://topsoj.com/api/publicproblem?id=${widget.problemId}');
-    final markdownResponse = await http.get(markdownUrl);
-    final markdownJson = jsonDecode(markdownResponse.body);
-
-    if (markdownResponse.statusCode != 200) {
-      if(is_cached(widget.problemId)){
+    try{
+      markdownUrl = Uri.parse('https://topsoj.com/api/publicproblem?id=${widget.problemId}');
+      markdownResponse = await http.get(markdownUrl);
+      markdownJson = jsonDecode(markdownResponse.body);
+    } catch(e){
+      if(await is_cached(widget.problemId)){
         _markdownData = await readMarkdown(widget.problemId+'.md') ?? "Error: problem markdown not found. Delete this cached problem";
-        _problemName = await cached_info(widget.problemId)['name'];
+        _problemName = (await cached_info(widget.problemId))['name'] ?? "Error: Problem not cached";
         _canNxt = false;
         _canPrev = false;
         _isSolved = false;
@@ -53,22 +59,14 @@ class _ProblemPageState extends State<ProblemPage> {
         return;
       }
       else{
-        _markdownData="Markdown load failed: ${markdownResponse.statusCode} ${markdownJson['message']}";
+        _markdownData="Network error";
         return;
       }
     }
 
-    // fetch isSolved
-    bool solved = false;
-    if (apiKey.isNotEmpty) {
-      final solvedUrl = Uri.parse('https://topsoj.com/api/problemsolved?id=${widget.problemId}');
-      final solvedResponse = await http.get(solvedUrl, headers: {
-        'Authorization': 'Bearer $apiKey',
-      });
-      if (solvedResponse.statusCode == 200) {
-        final solvedJson = jsonDecode(solvedResponse.body);
-        solved = solvedJson['data']['solved'] == true;
-      }
+    if (markdownResponse.statusCode != 200) {
+      _markdownData="Markdown load failed: ${markdownResponse.statusCode} ${markdownJson['message']}";
+      return;
     }
 
     // set state in batch
@@ -78,43 +76,33 @@ class _ProblemPageState extends State<ProblemPage> {
     _canPrev = markdownJson['data']['can_prev'];
     _nxt = markdownJson['data']['nxt'].replaceFirst('/problem/', '');
     _prev = markdownJson['data']['prev'].replaceFirst('/problem/', '');
-    _isSolved = solved;
-  }
-
-  Future<Map<String, dynamic>> submitProblem(String answer) async {
-    var url = Uri.parse('https://topsoj.com/api/submitproblem');
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? apiKey = prefs.getString('apiKey');
-
-    if (apiKey == null || apiKey.isEmpty) {
-      return {'statusCode': -1, 'data': 'API Key Not Found. Log In Again'};
-    }
-
-    var headers = {'Authorization': 'Bearer $apiKey'};
-    var response = await http.post(url, headers: headers, body: {
-      'problem_id': widget.problemId,
-      'answer': answer,
-    });
-    final jsonData = jsonDecode(response.body);
-    if (response.statusCode == 200) {
-      return {'statusCode': 200, 'data': jsonData['data']};
-    } else {
-      return {'statusCode': response.statusCode, 'data': jsonData['message']};
-    }
+    _isSolved = await checkSolved(widget.problemId);
   }
 
   void _submit() async {
     final answer = _controller.text.trim();
     _controller.clear();
-    final response = await submitProblem(answer);
+    var response = await submitProblem(widget.problemId, answer);
     if (response['statusCode'] == 200) {
       final passed = response['data']['check'] as bool;
+      if(passed){
+        await record(widget.problemId, 'correct', '${true}');
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(passed ? 'Your answer is correct' : 'Your answer is incorrect')),
       );
     } else {
+      if(response['statusCode'] == -1){
+        if(await is_cached(widget.problemId)){
+          await record(widget.problemId, 'answer', answer);
+          response = {'statusCode': -2, 'data': 'You are offline. Answer recorded in cache'};
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Submission failed: ${response['statusCode']} ${response['data']}')),
+        SnackBar(content: Text(response['statusCode'] == -2
+          ? '${response['data']}'
+          : 'Submission failed: ${response['statusCode']} ${response['data']}')),
       );
     }
   }
@@ -157,6 +145,12 @@ class _ProblemPageState extends State<ProblemPage> {
             final_src,
             width: width,
             fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Text(
+                '---Failed to load image---',
+                style: TextStyle(color: Colors.red),
+              );
+            },
           ),
         ),
       );
@@ -265,98 +259,105 @@ class _ProblemPageState extends State<ProblemPage> {
           children: _parseContent(_markdownData),
         );
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _problemName,
-                    style: const TextStyle(fontSize: 22),
-                    overflow: TextOverflow.ellipsis,
+        return WillPopScope(onWillPop: ()async{
+            Navigator.pop(context, true); // 手动传回是否需要刷新
+            return false; // 阻止默认返回行为（因为我们手动pop了）
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _problemName,
+                      style: const TextStyle(fontSize: 22),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                if (_isSolved)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8),
-                    child: Icon(Icons.check_circle, color: Colors.green, size: 24),
-                  ),
-              ],
-            ),
-          ),
-          body: Column(
-            children: [
-              Expanded(child: content),
-              ElevatedButton(
-                onPressed: () async {
-                  await cache(widget.problemId, _problemName, _markdownData);
-                  print(await get_cached());
-                  print(await readMarkdown(widget.problemId+'.md'));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Problem Cached')),
-                  );
-                },
-                child: const Text('Cache this problem'),
+                  if (_isSolved)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.check_circle, color: Colors.green, size: 24),
+                    ),
+                ],
               ),
-              if (_canPrev || _canNxt)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            body: Column(
+              children: [
+                Expanded(child: content),
+                if(!_isCached) 
+                  ElevatedButton(
+                    onPressed: () async {
+                      setState(() async {
+                        await cache(widget.problemId, _problemName, _markdownData);
+                        _isCached=true;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Problem Cached')),
+                      );
+                    },
+                    child: const Text('Cache this problem'),
+                  ),
+                if (_canPrev || _canNxt)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        if (_canPrev)
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => ProblemPage(problemId: _prev),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text("Previous"),
+                          ),
+                        if (_canNxt)
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => ProblemPage(problemId: _nxt),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.arrow_forward),
+                            label: const Text("Next"),
+                          ),
+                      ],
+                    ),
+                  ),
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      if (_canPrev)
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => ProblemPage(problemId: _prev),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text("Previous"),
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          decoration: const InputDecoration(
+                            hintText: 'Answer',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
                         ),
-                      if (_canNxt)
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => ProblemPage(problemId: _nxt),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_forward),
-                          label: const Text("Next"),
-                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      FloatingActionButton(
+                        onPressed: _submit,
+                        tooltip: 'Submit',
+                        child: const Icon(Icons.send),
+                        mini: true,
+                      ),
                     ],
                   ),
                 ),
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        decoration: const InputDecoration(
-                          hintText: 'Answer',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    FloatingActionButton(
-                      onPressed: _submit,
-                      tooltip: 'Submit',
-                      child: const Icon(Icons.send),
-                      mini: true,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

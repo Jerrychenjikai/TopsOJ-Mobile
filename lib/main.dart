@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/problem_page.dart';
 import 'package:TopsOJ/cached_problem_page.dart';
+import 'package:TopsOJ/basic_func.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,36 +31,6 @@ class TopsOJ extends StatelessWidget {
       ),
       home: const RootPage(),
     );
-  }
-}
-
-Future<Map<String, dynamic>> checkApiKeyValid(String apiKey) async {
-  final uri = Uri.parse('https://topsoj.com/api/confirmlogin');
-
-  try {
-    final response = await http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $apiKey'},
-    );
-
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(response.body);
-      print(jsonData);
-      return {
-        'statusCode': 200,
-        'username': jsonData['data']['username'],
-      };
-    } else {
-      return {
-        'statusCode': response.statusCode,
-        'username': null,
-      };
-    }
-  } catch (e) {
-    return {
-      'statusCode': -1,
-      'username': null,
-    };
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:TopsOJ/basic_func.dart';
 
 //Some file operations for storing markdown content
 // 获取本地存储路径
@@ -81,7 +82,7 @@ Future<void> delcache(String problemId) async {//delete the cached problem (if c
 }
 
 Future<void> cache(String problemId, String problemName, String markdownData) async{ //cache a problem
-    Map<String, String> newproblem = {'id':problemId, 'name':problemName, 'answer':''}; 
+    Map<String, String> newproblem = {'id':problemId, 'name':problemName, 'answer':'', 'correct':'${await checkSolved(problemId)}'}; 
     final String filename = problemId+'.md';
     await delcache(problemId); //delete to make sure no duplicates
     await writeMarkdown(filename, markdownData);
@@ -106,13 +107,13 @@ Future<Map<String, String>> cached_info(String problemId) async { //obtain the i
     return {};
 }
 
-Future<void> record_answer(String problemId, String answer) async {
+Future<void> record(String problemId, String key, String value) async {
     if(await is_cached(problemId)){
         List<Map<String, String>> problem = await get_cached();
         
         for(int i=0;i<problem.length;i++){
             if(problem[i]['id']==problemId){
-                problem[i]['answer']=answer;
+                problem[i][key]=value;
                 break;
             }
         }
