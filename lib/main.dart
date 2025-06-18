@@ -76,30 +76,32 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _username = TextEditingController();
+  final TextEditingController _password = TextEditingController();
 
   Future<void> _login() async {
-    String apiKey = _controller.text.trim();
-    if (apiKey.isEmpty) {
+    String username = _username.text.trim();
+    String password = _password.text.trim();
+    if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter API key')),
+        const SnackBar(content: Text('Please enter username and password')),
       );
       return;
     }
 
-    final result = await checkApiKeyValid(apiKey);
+    final result = await login(username, password);
     final int isValid = result['statusCode'];
-    final String? username = result['username'];
+    final String? apiKey = result['apikey'];
 
     if (isValid != 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('API Key Invalid: ${isValid.toString()}')),
+        SnackBar(content: Text('Login Invalid: ${isValid.toString()}')),
       );
       return;
     }
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('apiKey', apiKey);
+    await prefs.setString('apiKey', apiKey ?? "");
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MainPage()),
@@ -125,46 +127,42 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Click to generate API Key:', style: TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => _launchURL("https://topsoj.com/settings"),
-              child: const Text(
-                'https://topsoj.com/settings',
-                style: TextStyle(
-                  color: Colors.blue,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
             TextField(
-              controller: _controller,
+              controller: _username,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'API Key',
+                labelText: 'User name',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _password,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Password',
               ),
             ),
             const SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: _login,
-                child: const Text('LogIn'),
-              ),
-            ),
-
-            Center(
-              child: ElevatedButton(
-                onPressed: (){
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CachedPage(),
-                    ),
-                  );
-                },
-                child: const Text('Check all cached problem'),
-              ),
-            ),
+            Row(
+              children:[
+                ElevatedButton(
+                  onPressed: _login,
+                  child: const Text('LogIn'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: (){
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CachedPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Check all cached problem'),
+                ),
+              ]
+            )
           ],
         ),
       ),
@@ -317,7 +315,7 @@ class _MainPageState extends State<MainPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 文本框 + Search 按钮一行
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(

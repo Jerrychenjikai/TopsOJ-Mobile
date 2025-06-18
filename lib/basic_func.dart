@@ -37,6 +37,44 @@ Future<Map<String, dynamic>> checkApiKeyValid(String apiKey) async {
   }
 }
 
+Future<Map<String, dynamic>> login(String username, String password) async {
+  final uri = Uri.parse('https://topsoj.com/api/login');
+
+  try {
+    final response = await http.post(
+      uri,
+      headers: {},
+      body: {
+        'username': username,
+        'password': password,
+        'platform': "Mobile"
+      }
+    );
+
+    if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      print(jsonData);
+      return {
+        'statusCode': 200,
+        'username': jsonData['data']['username'],
+        'apikey': jsonData['data']['key']
+      };
+    } else {
+      return {
+        'statusCode': response.statusCode,
+        'username': null,
+        'apikey': null
+      };
+    }
+  } catch (e) {
+    return {
+      'statusCode': -1,
+      'username': null,
+      'apikey': null
+    };
+  }
+}
+
 Future<Map<String, dynamic>> submitProblem(String problemId, String answer) async {
     var url = Uri.parse('https://topsoj.com/api/submitproblem');
     SharedPreferences prefs = await SharedPreferences.getInstance();

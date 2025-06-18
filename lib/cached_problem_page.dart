@@ -27,29 +27,29 @@ class _CachedPageState extends State<CachedPage> {
   }
 
   Future<void> _submitAll() async { //submit the first 5 wrong problems since there is a rate limit
-    List<Map<String, String>> problems = await get_cached();
+    Map<String, Map<String, String>> problems = await get_cached();
     Map<String, dynamic> response;
     int cnt=0;
 
-    for(var problem in problems){
-      if((problem['id'] ?? "").isEmpty || (problem['answer'] ?? "").isEmpty || problem['correct']=="true") 
+    for(var entry in problems.entries){
+      if((entry.key).isEmpty || (entry.value['answer'] ?? "").isEmpty || entry.value['correct']=="true") 
         continue;
       if(cnt==5) break;
       cnt++;
 
-      response = await submitProblem(problem['id'] ?? "",problem['answer'] ?? "");
+      response = await submitProblem(entry.key ?? "",entry.value['answer'] ?? "");
 
       if (response['statusCode'] == 200) {
         final passed = response['data']['check'] as bool;
         if(passed){
-          await record(problem['id'] ?? "", 'correct', '${true}');
+          await record(entry.key, 'correct', '${true}');
         }
         else{
-          await record(problem['id'] ?? "", 'correct', '${false}');
+          await record(entry.key, 'correct', '${false}');
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('When Submitting ${problem['name']} \nSubmission failed: ${response['statusCode']} ${response['data']}')),
+          SnackBar(content: Text('When Submitting ${entry.value['name']} \nSubmission failed: ${response['statusCode']} ${response['data']}')),
         );
         break;
       }
@@ -85,25 +85,25 @@ class _CachedPageState extends State<CachedPage> {
 
   Future<List<Widget>> _render() async {
     List<Widget> widgets = [];
-    List<Map<String, String>> _cached = await get_cached();
+    Map<String, Map<String, String>> _cached = await get_cached();
 
-    for (Map<String, String> problem in _cached) {
+    for (var problem in _cached.entries) {
       widgets.add(
         ListTile(
-          title: Text(problem['name'] ?? 'No Name'),
-          subtitle: Text("Your answer: ${problem['answer']?.isNotEmpty == true ? problem['answer'] : 'No Answer'}\n"
-                          "Correct:    ${problem['correct']}"),
+          title: Text(problem.value['name'] ?? 'No Name'),
+          subtitle: Text("Your answer: ${problem.value['answer']?.isNotEmpty == true ? problem.value['answer'] : 'No Answer'}\n"
+                          "Correct:    ${problem.value['correct']}"),
           leading: const Icon(Icons.book),
           trailing: IconButton(
             icon: const Icon(Icons.delete),
             onPressed: () async {
-              await delcache(problem['id'] ?? "");
+              await delcache(problem.key);
               setState(() async {
                 _cachedProblemsFuture = _render();
               });
             },
           ),
-          onTap: () => _gotoProblem(problem['id']),
+          onTap: () => _gotoProblem(problem.key),
         ),
       );
     }
