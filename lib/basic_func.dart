@@ -18,10 +18,10 @@ Future<Map<String, dynamic>> checkApiKeyValid(String apiKey) async {
 
     if (response.statusCode == 200) {
       final jsonData = jsonDecode(response.body);
-      print(jsonData);
+      //print(jsonData);
       return {
         'statusCode': 200,
-        'username': jsonData['data']['username'],
+        'username': jsonData['data']['username'][0]['username'],
       };
     } else {
       return {
