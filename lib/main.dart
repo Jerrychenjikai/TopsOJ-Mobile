@@ -212,8 +212,6 @@ class _MainPageState extends State<MainPage> {
     if (response.statusCode == 200) {
       setState((){
         _problem_ids = jsonData['data']['problems'];
-        print(_problem_ids);
-        print(jsonData['data']['length'][0]['cnt']);
         _problems_cnt = jsonData['data']['length'][0]['cnt'];
       });
       return;
@@ -300,6 +298,21 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        width: min(MediaQuery.of(context).size.width * 0.75, 500),
+        child: Column(
+          children: [
+            const SizedBox(height: 50),
+            ElevatedButton(
+              onPressed: _makeRequest,
+              child: const Text('Login Status'),
+            ),
+            const SizedBox(height: 20),
+            Text(_response, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
       appBar: AppBar(
         title: const Text('Home Page'),
         actions: [
@@ -311,89 +324,87 @@ class _MainPageState extends State<MainPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _problemIdController,
-                      decoration: const InputDecoration(
-                        labelText: 'Enter Problem Name/ID',
-                        border: OutlineInputBorder(),
-                      ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _problemIdController,
+                            decoration: const InputDecoration(
+                              labelText: 'Enter Problem Name/ID',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            _page=1;
+                            _getProblems();
+                          },
+                          child: const Icon(Icons.search),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      _page=1;
-                      _getProblems();
-                    },
-                    child: const Icon(Icons.search),
-                  ),
-                ],
-              ),
-            
-              const SizedBox(height: 15),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (_page > 1)
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _page = _page - 1;
-                          _getProblems();
-                        });
-                      },
-                      child: const Icon(Icons.arrow_back),
-                    )
-                  else
-                    const SizedBox(width: 60), // 占位对齐
+                  
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (_page > 1)
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _page = _page - 1;
+                                _getProblems();
+                              });
+                            },
+                            child: const Icon(Icons.arrow_back),
+                          )
+                        else
+                          const SizedBox(width: 60), // 占位对齐
 
-                  // 中间页数文字
-                  Text('Page $_page/${(_problems_cnt/10).ceil()}', style: const TextStyle(fontSize: 16)),
+                        // 中间页数文字
+                        Text('Page $_page/${(_problems_cnt/10).ceil()}', style: const TextStyle(fontSize: 16)),
 
-                  if (_page * 10 < _problems_cnt)
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _page = _page + 1;
-                          _getProblems();
-                        });
-                      },
-                      child: const Icon(Icons.arrow_forward),
-                    )
-                  else
-                    const SizedBox(width: 60), // 占位对齐
-                ],
-              ),
-
-              ..._render(),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _makeRequest,
-                child: const Text('Login Status'),
-              ),
-              const SizedBox(height: 20),
-              Text(_response, style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: (){
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CachedPage(),
+                        if (_page * 10 < _problems_cnt)
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _page = _page + 1;
+                                _getProblems();
+                              });
+                            },
+                            child: const Icon(Icons.arrow_forward),
+                          )
+                        else
+                          const SizedBox(width: 60), // 占位对齐
+                      ],
                     ),
-                  );
-                },
-                child: const Text('Check all cached problem'),
+                    ..._render(),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            ElevatedButton(
+              onPressed: (){
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CachedPage(),
+                  ),
+                );
+              },
+              child: const Text('Check all cached problem'),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
