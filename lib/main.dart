@@ -188,7 +188,7 @@ class _MainPageState extends State<MainPage> {
     {'id': "02_amc10A_p01", 'name': '2002 AMC 10A problem 1'},
     {'id': "03_amc12A_p01", 'name': '2003 AMC 12A problem 1'},
     {'id': "04_amc12A_p02", 'name': '2004 AMC 12A problem 2'},
-  ];//replace this with function that requests for problem list
+  ];//changed by the _getProblems function
 
   Future<void> _getProblems() async {
     var url = Uri.parse('https://topsoj.com/api/problems');
@@ -211,6 +211,7 @@ class _MainPageState extends State<MainPage> {
     final jsonData = jsonDecode(response.body);
     if (response.statusCode == 200) {
       setState((){
+        //jsonData['data']['solved']=['nt1'];
         _problem_ids = jsonData['data']['problems'];
         _problems_cnt = jsonData['data']['length'][0]['cnt'];
       });
@@ -248,7 +249,7 @@ class _MainPageState extends State<MainPage> {
         ListTile(
           title: Text(problem['name']),
           subtitle: Text(problem['id']),
-          leading: Icon(Icons.book),
+          leading: problem['solved']==1 ? Icon(Icons.check, color: Colors.green, size: 24) : (problem['solved']==0 ? Icon(Icons.clear, color: Colors.red, size: 24) : Icon(Icons.book)),
           onTap: () {
             _gotoProblem(problem['id']);
           },

@@ -277,7 +277,7 @@ class _ProblemPageState extends State<ProblemPage> {
                   if (_isSolved)
                     const Padding(
                       padding: EdgeInsets.only(left: 8),
-                      child: Icon(Icons.check_circle, color: Colors.green, size: 24),
+                      child: Icon(Icons.check, color: Colors.green, size: 24),
                     ),
                 ],
               ),
