@@ -93,7 +93,7 @@ class _CachedPageState extends State<CachedPage> {
           title: Text(problem.value['name'] ?? 'No Name'),
           subtitle: Text("Your answer: ${problem.value['answer']?.isNotEmpty == true ? problem.value['answer'] : 'No Answer'}\n"
                           "Correct:    ${problem.value['correct']}"),
-          leading: const Icon(Icons.book),
+          leading: (await cached_info(problem.key))['correct']=='true' ? Icon(Icons.check, color: Colors.green, size: 24) : Icon(Icons.clear, color: Colors.red, size: 24),
           trailing: IconButton(
             icon: const Icon(Icons.delete),
             onPressed: () async {

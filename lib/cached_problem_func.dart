@@ -1,17 +1,67 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:TopsOJ/basic_func.dart';
 
+final imgRegex = RegExp(
+    r'<img[^>]*src="([^"]+)"[^>]*?width="(\d+)(?:px)?"[^>]*?>',
+    caseSensitive: false,
+);//same as the one in problem_page.dart
+
+Future<List<String>> imageCount(String problemId) async {
+    String markdown = await readMarkdown(problemId+'.md') ?? "";
+    
+    String cache="";
+    List<String> ans=[];
+    for (final match in imgRegex.allMatches(markdown)){
+        final src = match.group(1)!;
+        final final_src;
+
+        final width = match.group(2) != null ? double.tryParse(match.group(2)!) : null;
+
+        if(src[0]=='/') final_src="https://topsoj.com"+src;
+        else final_src=src;
+
+        cache=final_src;
+        ans.add(cache);
+    }
+    return ans;
+}
+
+String urlToFilename(String problemId, int cnt){
+    return problemId+"${cnt}.jpg";
+    //currently there is no problemid with illegal characters, but that has to be enforced
+}
+
 //Some file operations for storing markdown content
 // 获取本地存储路径
 Future<String> get localPath async {
     final directory = await getApplicationDocumentsDirectory();
     return directory.path; // 应用私有目录
+}
+
+Future<File?> saveImage(String url, String problemId, int cnt) async{
+    try{
+        final response = await http.get(Uri.parse(url));
+
+        if(response.statusCode != 200){
+            throw Exception("Failed to download image");
+        }
+
+        final path = await localPath;
+
+        final filename = urlToFilename(problemId, cnt);
+
+        final File image = File("${path}/${filename}");
+        return await image.writeAsBytes(response.bodyBytes);
+    } catch(e) {
+        print("Error saving image: $e");
+        return null;
+    }
 }
 
 // 获取文件对象
@@ -48,33 +98,13 @@ Future<void> deleteMarkdown(String filename) async {
 Future<Map<String, Map<String, String>>> get_cached() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Step 1: 读取旧的列表结构
-    final content = prefs.getString('cached problems') ?? "[]";
-    final List<dynamic> decodedList = jsonDecode(content);
-    final List<Map<String, String>> oldList = decodedList
-        .map<Map<String, String>>((item) => Map<String, String>.from(item))
-        .toList();
-
-  // Step 2: 转换旧列表为 Map
-    Map<String, Map<String, String>> listAsMap = {
-        for (var item in oldList)
-            if (item.containsKey('id')) item['id']!: item
-    };
-
-  // Step 3: 读取原本已存在的 map 缓存
     final mapContent = prefs.getString('cached map problems') ?? "{}";
     final Map<String, dynamic> decodedMap = jsonDecode(mapContent);
     final Map<String, Map<String, String>> existingMap =
         decodedMap.map((key, value) =>
             MapEntry(key, Map<String, String>.from(value)));
 
-  // Step 4: 合并两个 Map（listAsMap 优先）
-    final mergedMap = {...existingMap, ...listAsMap};
-
-  // Step 5: 清空旧结构
-    await prefs.remove('cached problems');
-
-    return mergedMap;
+    return existingMap;
 }
 
 Future<void> save_cached(Map<String, Map<String, String>> cached) async{//save map to disk
@@ -92,6 +122,10 @@ Future<void> save_cached(Map<String, Map<String, String>> cached) async{//save m
 
 Future<void> delcache(String problemId) async {
     final String filename = problemId + '.md';
+    int cnt = (await imageCount(problemId)).length;
+    for(int i=0;i<cnt;i++){
+        deleteMarkdown(urlToFilename(problemId,i));
+    }
     await deleteMarkdown(filename);
 
     Map<String, Map<String, String>> cached = await get_cached();
@@ -103,11 +137,22 @@ Future<void> delcache(String problemId) async {
     await save_cached(cached);
 }
 
-Future<void> cache(String problemId, String problemName, String markdownData) async{ //cache a problem
-    Map<String, String> newproblem = {'name':problemName, 'answer':'', 'correct':'${await checkSolved(problemId)}'}; 
+Future<void> cache(String problemId, String problemName, String markdownData, String nxt, String prev) async{ //cache a problem
+    Map<String, String> newproblem = {
+        'name':problemName, 
+        'answer':'', 
+        'correct':'${await checkSolved(problemId)}',
+        'nxt':nxt,
+        'prev':prev
+    }; 
     final String filename = problemId+'.md';
     await delcache(problemId); //delete to make sure no duplicates
     await writeMarkdown(filename, markdownData);
+    
+    List<String> images = await imageCount(problemId);
+    for(int i=0;i<images.length;i++){
+        saveImage(images[i],problemId,i);
+    }
 
     Map<String, Map<String, String>> cached = await get_cached();
     cached[problemId]=newproblem;
