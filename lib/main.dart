@@ -184,6 +184,12 @@ class _MainPageState extends State<MainPage> {
   int _page=1;
   int _problems_cnt=3;
 
+  @override
+  void initState(){
+    super.initState();
+    _makeRequest();
+  }
+
   List<dynamic> _problem_ids = [
     {'id': "02_amc10A_p01", 'name': '2002 AMC 10A problem 1'},
     {'id': "03_amc12A_p01", 'name': '2003 AMC 12A problem 1'},
@@ -277,7 +283,7 @@ class _MainPageState extends State<MainPage> {
 
     setState(() {
       if (statusCode == 200) {
-        _response = 'API Key Valid\nUsername: $username';
+        _response = 'Welcome, $username';
       } else if (statusCode == 429){
         _response = "Too many requests. Wait 1 minute";
       } else {
@@ -304,12 +310,7 @@ class _MainPageState extends State<MainPage> {
         child: Column(
           children: [
             const SizedBox(height: 50),
-            ElevatedButton(
-              onPressed: _makeRequest,
-              child: const Text('Login Status'),
-            ),
-            const SizedBox(height: 20),
-            Text(_response, style: const TextStyle(fontSize: 16)),
+            Text(_response, style: const TextStyle(fontSize: 30)),
             const SizedBox(height: 20),
           ],
         ),
