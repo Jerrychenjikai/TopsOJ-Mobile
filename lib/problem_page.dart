@@ -146,7 +146,9 @@ class _ProblemPageState extends State<ProblemPage> {
       if(src[0]=='/') final_src="https://topsoj.com"+src;
       else final_src=src;
 
-      final filename = urlToFilename(widget.problemId,0);
+      print(cnt);
+      final filename = urlToFilename(widget.problemId,cnt);
+      cnt+=1;
       final file = File("${path}/${filename}");
       
       widgets.add(
@@ -157,6 +159,7 @@ class _ProblemPageState extends State<ProblemPage> {
             width: width,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace){
+              print("file not found: ${path}/${filename}");
               return Image.network(
                 final_src,
                 width: width,
@@ -171,7 +174,6 @@ class _ProblemPageState extends State<ProblemPage> {
         ),
       );
       lastEnd = match.end;
-      cnt+=1;
     }
     // Remaining content after last image
     if (lastEnd < raw.length) {
@@ -356,6 +358,9 @@ class _ProblemPageState extends State<ProblemPage> {
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
+                          onSubmitted: (value){
+                            _submit();
+                          },
                         ),
                       ),
                       const SizedBox(width: 10),

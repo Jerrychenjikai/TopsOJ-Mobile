@@ -91,6 +91,7 @@ Future<void> deleteMarkdown(String filename) async {
     final file = await localFile(filename);
     if (await file.exists()) {
         await file.delete();
+        print("file deleted: ${filename}");
     }
 }
 
@@ -151,7 +152,7 @@ Future<void> cache(String problemId, String problemName, String markdownData, St
     
     List<String> images = await imageCount(problemId);
     for(int i=0;i<images.length;i++){
-        saveImage(images[i],problemId,i);
+        print("image saved: ${await saveImage(images[i],problemId,i)}");
     }
 
     Map<String, Map<String, String>> cached = await get_cached();

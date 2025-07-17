@@ -342,6 +342,9 @@ class _MainPageState extends State<MainPage> {
                               labelText: 'Enter Problem Name/ID',
                               border: OutlineInputBorder(),
                             ),
+                            onSubmitted: (value){
+                              _getProblems();
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),
