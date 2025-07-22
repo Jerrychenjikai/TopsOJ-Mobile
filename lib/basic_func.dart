@@ -22,7 +22,7 @@ Future<Map<String, dynamic>> checkApiKeyValid(String apiKey) async {
       return {
         'statusCode': 200,
         'username': jsonData['data']['username'][0]['username'],
-        'userdata': jsonDara['data']['username'][0],
+        'userdata': jsonData['data']['username'][0],
       };
     } else {
       return {

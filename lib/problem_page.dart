@@ -159,13 +159,13 @@ class _ProblemPageState extends State<ProblemPage> {
             width: width,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace){
-              print("file not found: ${path}/${filename}");
+              //print("file not found: ${path}/${filename}");
               return Image.network(
                 final_src,
                 width: width,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  return Text("--Failed to load image--${filename}",
+                  return Text("--Failed to load image--",
                     style: TextStyle(color: Colors.red));//change this text to red
                 }
               );
