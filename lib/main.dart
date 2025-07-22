@@ -213,7 +213,11 @@ class _MainPageState extends State<MainPage> {
         child: Column(
           children: [
             const SizedBox(height: 50),
-            Text(_response, style: const TextStyle(fontSize: 30)),
+            Text(
+              _response, 
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
