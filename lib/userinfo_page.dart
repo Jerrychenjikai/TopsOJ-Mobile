@@ -19,7 +19,7 @@ class UserinfoPage extends StatefulWidget {
 }
 
 class _UserinfoPageState extends State<UserinfoPage> {
-    Map<String, dynamic> userinfo={};
+    Map<String, dynamic> _userinfo={};
 
     Future<void> _fetch_data() async {
         SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -32,15 +32,24 @@ class _UserinfoPageState extends State<UserinfoPage> {
                 MaterialPageRoute(builder: (context) => LoginPage(gotopage: '/userinfo')),
             );
         }
+        _userinfo = data['userdata'];
+        print(_userinfo);
+        return;
     }
 
     Widget build(BuildContext context){ 
         return FutureBuilder(
             future: _fetch_data(),
             builder: (context, snapshot){
+                if (snapshot.connectionState != ConnectionState.done){
+                    return Scaffold(
+                        appBar: AppBar(title: const Text("Userinfo Page")),
+                        body: const Center(child: CircularProgressIndicator()),
+                    );
+                }
                 return Scaffold(
                     appBar: AppBar(title: const Text("Userinfo Page")),
-                    body: const Center(child: const Text("Loading")),
+                    body: Center(child: Text(_userinfo['join_date'])),
                 );
             },
         );
