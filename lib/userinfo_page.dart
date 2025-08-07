@@ -43,13 +43,17 @@ class _UserinfoPageState extends State<UserinfoPage> {
             builder: (context, snapshot){
                 if (snapshot.connectionState != ConnectionState.done){
                     return Scaffold(
-                        appBar: AppBar(title: const Text("Userinfo Page")),
+                        appBar: AppBar(title: const Text("User: ")),
                         body: const Center(child: CircularProgressIndicator()),
                     );
                 }
                 return Scaffold(
-                    appBar: AppBar(title: const Text("Userinfo Page")),
-                    body: Center(child: Text(_userinfo['join_date'])),
+                    appBar: AppBar(title: Text("User: "+_userinfo['username'])),
+                    body: Column(
+                        children: [
+                            Expanded(child: Text("Join date: "+_userinfo['join_date'])),
+                        ],
+                    ),
                 );
             },
         );
