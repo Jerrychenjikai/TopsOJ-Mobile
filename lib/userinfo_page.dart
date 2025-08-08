@@ -49,10 +49,21 @@ class _UserinfoPageState extends State<UserinfoPage> {
                 }
                 return Scaffold(
                     appBar: AppBar(title: Text("User: "+_userinfo['username'])),
-                    body: Column(
-                        children: [
-                            Expanded(child: Text("Join date: "+_userinfo['join_date'])),
-                        ],
+                    body: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                            children: [
+                                Expanded(
+                                    child: ListView(
+                                        children: [
+                                            Text("Join date: ${_userinfo['join_date']}"),
+                                            Text("Total Points: ${_userinfo['total_points']}"),
+                                            Text("Streak: ${_userinfo['streak']}"),
+                                        ],
+                                    ),
+                                ),
+                            ],
+                        ),
                     ),
                 );
             },
