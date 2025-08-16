@@ -102,6 +102,9 @@ class _ProblemPageState extends State<ProblemPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(passed ? 'Your answer is correct' : 'Your answer is incorrect')),
       );
+      setState(() {
+        _isSolved=true;
+      });
     } else {
       if(response['statusCode'] == -1){
         if(await is_cached(widget.problemId)){
