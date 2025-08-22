@@ -11,7 +11,7 @@ import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/problem_page.dart';
 import 'package:TopsOJ/cached_problem_page.dart';
 import 'package:TopsOJ/basic_func.dart';
-import 'package:TopsOJ/userinfo_page.dart';
+import 'package:TopsOJ/ranking_page.dart';
 import 'package:TopsOJ/login_page.dart';
 
 void main() async {
@@ -29,7 +29,7 @@ class TopsOJ extends StatelessWidget {
       title: "Tops Online Judge",
       routes: {
         '/home': (context) => MainPage(),
-        '/userinfo': (context) => UserinfoPage(),
+        '/ranking': (context) => RankingPage(),
       },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -84,6 +84,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   String _response = '';
+  Map<String, dynamic> _userinfo={};
   final TextEditingController _problemIdController = TextEditingController();
   int _page=1;
   int _problems_cnt=3;
@@ -188,6 +189,7 @@ class _MainPageState extends State<MainPage> {
     setState(() {
       if (statusCode == 200) {
         _response = 'Welcome, $username';
+        _userinfo = result['userdata'];
       } else if (statusCode == 429){
         _response = "Too many requests. Wait 1 minute";
       } else {
@@ -210,26 +212,53 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: Drawer(
-        width: min(MediaQuery.of(context).size.width * 0.75, 500),
-        child: Column(
-          children: [
-            const SizedBox(height: 50),
-            Text(
-              _response, 
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => UserinfoPage()),
-                );
-              },
-              child: const Text("Userinfo Page"),
-            )
-          ],
+        width: max(min(MediaQuery.of(context).size.width * 0.75, 500),350),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child:Column(
+            children: [
+              const SizedBox(height:30),
+              Text(
+                _response, 
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+              ),
+              Expanded(
+                child: ListView(
+                  children: [
+                    Text("Join date: ${_userinfo['join_date']}"),
+                    Text("Total Points: ${_userinfo['total_points']}"),
+                    Text("Streak: ${_userinfo['streak']}"),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => RankingPage()),
+                      );
+                    },
+                    child: const Text("Rankings"),
+                  ),
+                  ElevatedButton(
+                    onPressed: (){
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CachedPage(),
+                        ),
+                      );
+                    },
+                    child: const Text('Cached problems'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       appBar: AppBar(
@@ -315,17 +344,6 @@ class _MainPageState extends State<MainPage> {
                 ),
               ),
             ),
-            ElevatedButton(
-              onPressed: (){
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => CachedPage(),
-                  ),
-                );
-              },
-              child: const Text('Check all cached problem'),
-            ),
-            const SizedBox(height: 16),
           ],
         ),
       ),

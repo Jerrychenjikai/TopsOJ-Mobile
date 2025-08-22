@@ -11,29 +11,15 @@ import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
 
 
-class UserinfoPage extends StatefulWidget {
-    const UserinfoPage({super.key});
+class RankingPage extends StatefulWidget {
+    const RankingPage({super.key});
 
     @override
-    _UserinfoPageState createState() => _UserinfoPageState();
+    _RankingState createState() => _RankingState();
 }
 
-class _UserinfoPageState extends State<UserinfoPage> {
-    Map<String, dynamic> _userinfo={};
-
+class _RankingState extends State<RankingPage> {
     Future<void> _fetch_data() async {
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        String apiKey = prefs.getString('apiKey') ?? '';
-
-        Map<String, dynamic> data= await checkApiKeyValid(apiKey);
-        if(data['statusCode']!=200){
-            Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage(gotopage: '/userinfo')),
-            );
-        }
-        _userinfo = data['userdata'];
-        print(_userinfo);
         return;
     }
 
@@ -43,12 +29,12 @@ class _UserinfoPageState extends State<UserinfoPage> {
             builder: (context, snapshot){
                 if (snapshot.connectionState != ConnectionState.done){
                     return Scaffold(
-                        appBar: AppBar(title: const Text("User: ")),
+                        appBar: AppBar(title: const Text("Ranking Page (To be redesigned)")),
                         body: const Center(child: CircularProgressIndicator()),
                     );
                 }
                 return Scaffold(
-                    appBar: AppBar(title: Text("User: "+_userinfo['username'])),
+                    appBar: AppBar(title: Text("Ranking Page (To be redesigned)")),
                     body: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -56,9 +42,9 @@ class _UserinfoPageState extends State<UserinfoPage> {
                                 Expanded(
                                     child: ListView(
                                         children: [
-                                            Text("Join date: ${_userinfo['join_date']}"),
-                                            Text("Total Points: ${_userinfo['total_points']}"),
-                                            Text("Streak: ${_userinfo['streak']}"),
+                                            Text("User 1"),
+                                            Text("User 2"),
+                                            Text("User 3"),
                                         ],
                                     ),
                                 ),
