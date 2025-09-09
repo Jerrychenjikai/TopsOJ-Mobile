@@ -286,6 +286,11 @@ class _MainPageState extends State<MainPage> {
           ),
         ),
       ),
+      onDrawerChanged: (isOpened){
+        if (isOpened){
+          _makeRequest();
+        }
+      },
       appBar: AppBar(
         title: const Text('Home Page'),
         actions: [
