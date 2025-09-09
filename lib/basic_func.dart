@@ -129,6 +129,26 @@ Future<bool> checkSolved(String problemId) async {
     return solved;
 }
 
+Future<List<dynamic>> fetchWeeklylb() async {
+  final prefs = await SharedPreferences.getInstance();
+  final apiKey = prefs.getString('apiKey') ?? "";
+
+  List<dynamic> weeklylb=[];
+
+  if (apiKey.isNotEmpty) {
+    final solvedUrl = Uri.parse('https://topsoj.com/api/weeklylb');
+    final solvedResponse = await http.get(solvedUrl, headers: {
+      'Authorization': 'Bearer $apiKey',
+    });
+    if (solvedResponse.statusCode == 200) {
+      final solvedJson = jsonDecode(solvedResponse.body);
+      weeklylb = solvedJson['data']['leaderboard'];
+    }
+  }
+
+  return weeklylb;
+}
+
 double min(double a, double b){
   if(a<b) return a;
   return b;

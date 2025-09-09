@@ -186,6 +186,9 @@ class _MainPageState extends State<MainPage> {
     final int statusCode = result['statusCode'];
     final String? username = result['username'];
 
+    List<dynamic> weeklylb = await fetchWeeklylb();
+    print(weeklylb);
+
     setState(() {
       if (statusCode == 200) {
         _response = 'Welcome, $username';
