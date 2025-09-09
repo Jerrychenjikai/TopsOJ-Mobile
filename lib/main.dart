@@ -88,6 +88,7 @@ class _MainPageState extends State<MainPage> {
   final TextEditingController _problemIdController = TextEditingController();
   int _page=1;
   int _problems_cnt=3;
+  List<Widget> _weeklylb_render=[];
 
   @override
   void initState(){
@@ -187,9 +188,20 @@ class _MainPageState extends State<MainPage> {
     final String? username = result['username'];
 
     List<dynamic> weeklylb = await fetchWeeklylb();
-    print(weeklylb);
 
     setState(() {
+      _weeklylb_render=[];
+
+      for (dynamic lb in weeklylb) {
+        _weeklylb_render.add(
+          ListTile(
+            title: Text(lb['username']),
+            subtitle: Text("${lb['total_points']} Points"),
+            leading: Text("${lb['rank']}"),
+          ),
+        );
+      }
+
       if (statusCode == 200) {
         _response = 'Welcome, $username';
         _userinfo = result['userdata'];
@@ -230,8 +242,18 @@ class _MainPageState extends State<MainPage> {
                 child: ListView(
                   children: [
                     Text("Join date: ${_userinfo['join_date']}"),
+                    const SizedBox(height: 5),
                     Text("Total Points: ${_userinfo['total_points']}"),
+                    const SizedBox(height: 5),
                     Text("Streak: ${_userinfo['streak']}"),
+
+                    const SizedBox(height: 15),
+                    Text(
+                      "Weekly Leaderboard", 
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                    ..._weeklylb_render,
                   ],
                 ),
               ),
