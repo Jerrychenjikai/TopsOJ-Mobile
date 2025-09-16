@@ -89,6 +89,7 @@ class _MainPageState extends State<MainPage> {
   int _page=1;
   int _problems_cnt=3;
   List<Widget> _weeklylb_render=[];
+  double _solved = 1;//0 - only fetch unsolved problems, 1 - no restrictions, 2 - only solved problems
 
   @override
   void initState(){
@@ -106,6 +107,7 @@ class _MainPageState extends State<MainPage> {
     var url = Uri.parse('https://topsoj.com/api/problems');
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? apiKey = prefs.getString('apiKey');
+    List<String> solvelist = ['false','none','true'];
 
     if (apiKey == null || apiKey.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,6 +120,7 @@ class _MainPageState extends State<MainPage> {
     var response = await http.post(url, headers: headers, body: {
       'page': '${_page}',
       'title': _problemIdController.text.trim(),
+      'solved': solvelist[_solved.toInt()],
     });
 
     final jsonData = jsonDecode(response.body);
@@ -312,6 +315,26 @@ class _MainPageState extends State<MainPage> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
+                        const Text("Filter by solved: "),
+                        Expanded(
+                          child: Slider(
+                            value: _solved,
+                            min: 0,
+                            max: 2,
+                            divisions: 2,
+                            label: ['Incorrect', 'All', 'Correct'][_solved.toInt()],
+                            onChanged: (double value) {
+                              setState(() {
+                                _solved = value;
+                                _getProblems();
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
                         Expanded(
                           child: TextField(
                             controller: _problemIdController,
@@ -334,8 +357,16 @@ class _MainPageState extends State<MainPage> {
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 20),
+                    Divider(
+                      color: Colors.grey, // 线条颜色
+                      thickness: 2,       // 线条粗细
+                      indent: 20,         // 左侧缩进
+                      endIndent: 20,      // 右侧缩进
+                    ),
                   
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
