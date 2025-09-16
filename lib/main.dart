@@ -357,16 +357,8 @@ class _MainPageState extends State<MainPage> {
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 20),
-                    Divider(
-                      color: Colors.grey, // 线条颜色
-                      thickness: 2,       // 线条粗细
-                      indent: 20,         // 左侧缩进
-                      endIndent: 20,      // 右侧缩进
-                    ),
                   
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 25),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
