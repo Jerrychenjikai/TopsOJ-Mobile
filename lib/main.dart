@@ -89,6 +89,7 @@ class _MainPageState extends State<MainPage> {
   int _page=1;
   int _problems_cnt=3;
   List<Widget> _weeklylb_render=[];
+  List<Widget> _precommend_render = [];
   double _solved = 1;//0 - only fetch unsolved problems, 1 - no restrictions, 2 - only solved problems
 
   @override
@@ -175,7 +176,7 @@ class _MainPageState extends State<MainPage> {
     return widgets;
   }
   
-  Future<void> _makeRequest() async {
+  Future<void> _makeRequest() async {//this renders the content in the drawer
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? apiKey = prefs.getString('apiKey');
 
@@ -191,6 +192,7 @@ class _MainPageState extends State<MainPage> {
     final String? username = result['username'];
 
     List<dynamic> weeklylb = await fetchWeeklylb();
+    List<dynamic> precommend = await fetchRecommendedProblems();
 
     setState(() {
       _weeklylb_render=[];
@@ -203,6 +205,22 @@ class _MainPageState extends State<MainPage> {
             leading: Text("${lb['rank']}"),
           ),
         );
+      }
+
+      if(precommend.length!=0){
+        _precommend_render=[];
+        for (dynamic pr in precommend){
+          _precommend_render.add(
+            ListTile(
+              title: Text(pr['name']),
+              subtitle: Text(pr['pid']),
+              leading: Icon(Icons.book),
+              onTap: () {
+                _gotoProblem(pr['pid']);
+              },
+            )
+          );
+        }
       }
 
       if (statusCode == 200) {
@@ -257,6 +275,14 @@ class _MainPageState extends State<MainPage> {
                       style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                     ..._weeklylb_render,
+
+                    const SizedBox(height: 15),
+                    Text(
+                      "Problems you might find challenging", 
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                    ..._precommend_render,
                   ],
                 ),
               ),

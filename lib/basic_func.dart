@@ -129,6 +129,26 @@ Future<bool> checkSolved(String problemId) async {
     return solved;
 }
 
+Future<List<dynamic>> fetchRecommendedProblems() async {
+  final prefs = await SharedPreferences.getInstance();
+  final apiKey = prefs.getString('apiKey') ?? "";
+
+  List<dynamic> recommended_problems=[];
+
+  if (apiKey.isNotEmpty) {
+    final solvedUrl = Uri.parse('https://topsoj.com/api/problemrecommend');
+    final solvedResponse = await http.get(solvedUrl, headers: {
+      'Authorization': 'Bearer $apiKey',
+    });
+    if (solvedResponse.statusCode == 200) {
+      final solvedJson = jsonDecode(solvedResponse.body);
+      recommended_problems = solvedJson['data'];
+    }
+  }
+
+  return recommended_problems;
+}
+
 Future<List<dynamic>> fetchWeeklylb() async {
   final prefs = await SharedPreferences.getInstance();
   final apiKey = prefs.getString('apiKey') ?? "";
