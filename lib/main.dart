@@ -210,6 +210,9 @@ class _MainPageState extends State<MainPage> {
       if(precommend.length!=0){
         _precommend_render=[];
         for (dynamic pr in precommend){
+          if(_precommend_render.length>4){
+            break;
+          }
           _precommend_render.add(
             ListTile(
               title: Text(pr['name']),
