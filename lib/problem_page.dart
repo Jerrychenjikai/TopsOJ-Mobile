@@ -33,6 +33,22 @@ class _ProblemPageState extends State<ProblemPage> {
   bool _isSolved = false;
   bool _isCached = false;
   bool _successfully_loaded = false;
+  bool _showGlow = false;
+
+  void _onAnswerCorrect() {
+    setState(() {
+      _showGlow = true;
+    });
+
+    // 2秒后隐藏发光效果
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showGlow = false;
+        });
+      }
+    });
+  }
 
   List<Widget> _rendered=[];
 
@@ -104,6 +120,9 @@ class _ProblemPageState extends State<ProblemPage> {
       );
       setState(() {
         _isSolved=true;
+        if(passed){
+          _onAnswerCorrect();
+        }
       });
     } else {
       if(response['statusCode'] == -1){
@@ -301,6 +320,25 @@ class _ProblemPageState extends State<ProblemPage> {
             ),
             body: Column(
               children: [
+                AnimatedOpacity(
+                  opacity: _showGlow ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 800),
+                    width: 220,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.greenAccent.withOpacity(0.6),
+                          Colors.transparent,
+                        ],
+                        radius: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+
                 Expanded(child: content),
                 if(!_isCached & _successfully_loaded) 
                   ElevatedButton(
