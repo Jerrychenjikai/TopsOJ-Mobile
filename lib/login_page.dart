@@ -97,6 +97,13 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: (){
+                    _launchURL("https://topsoj.com/register");
+                  },
+                  child: const Text('Register'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: (){
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => CachedPage(),
