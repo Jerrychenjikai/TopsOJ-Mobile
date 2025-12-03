@@ -76,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
               controller: _username,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'User name',
+                labelText: 'Username',
               ),
             ),
             const SizedBox(height: 8),
@@ -101,19 +101,19 @@ class _LoginPageState extends State<LoginPage> {
                   },
                   child: const Text('Register'),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: (){
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CachedPage(),
-                      ),
-                    );
-                  },
-                  child: const Text('Check all cached problem'),
-                ),
               ]
-            )
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: (){
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CachedPage(),
+                  ),
+                );
+              },
+              child: const Text('Check all cached problem'),
+            ),
           ],
         ),
       ),
