@@ -331,10 +331,7 @@ class InactivePage extends StatelessWidget {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushReplacementNamed(
-                    context,
-                    "/home",
-                  );
+                  Navigator.pop(context);
                 },
                 child: const Text('Start Solving'),
               ),
@@ -434,16 +431,7 @@ class BackgroundAnimation extends AnimatedWidget {
           ),
           boxShadow: const [BoxShadow(color: Color(0x26FFFFFF), blurRadius: 35)],
         ),
-        child: Center(
-          child: Container(
-            width: size * 0.6,
-            height: size * 0.6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x80FFFFFF), width: 1),
-            ),
-          ),
-        ),
+        child: null,
       ),
     );
   }
@@ -475,39 +463,74 @@ class BackgroundAnimation extends AnimatedWidget {
   }
 }
 
-// GlassPanel widget for glassmorphic effect
 class GlassPanel extends StatelessWidget {
   final Widget child;
   final double borderRadius;
+  final double borderWidth;
   final EdgeInsets padding;
+  final EdgeInsets safeAreaMinimum;
 
   const GlassPanel({
     super.key,
     required this.child,
     this.borderRadius = 28,
+    this.borderWidth = 1.8,
     this.padding = const EdgeInsets.all(24),
+    this.safeAreaMinimum = const EdgeInsets.all(12),
   });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+    return SafeArea(
+      minimum: safeAreaMinimum,
+      child: Padding(
+        // 这里给一个水平的 page padding（如果你想要紧贴边缘可以把 horizontal 设置为 0）
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: SizedBox(
+          width: double.infinity, // <- 关键：让 panel 横向撑满可用空间
           child: Container(
-            padding: padding,
+            // 外层负责 gradient 描边（完整包裹圆角）
             decoration: BoxDecoration(
-              color: const Color(0x1AFFFFFF),
-              border: Border.all(color: const Color(0x37FFFFFF)),
+              borderRadius: BorderRadius.circular(borderRadius),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0x2DFFFFFF), Color(0x14FFFFFF)],
+                colors: [
+                  Color(0x66FFFFFF),
+                  Color(0x22FFFFFF),
+                  Color(0x11FFFFFF),
+                ],
               ),
-              boxShadow: const [BoxShadow(color: Color(0x730C0914), blurRadius: 60, offset: Offset(0, 20))],
             ),
-            child: child,
+            padding: EdgeInsets.all(borderWidth),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(borderRadius - borderWidth),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                child: Container(
+                  width: double.infinity,
+                  padding: padding,
+                  decoration: BoxDecoration(
+                    color: const Color(0x1AFFFFFF),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0x2DFFFFFF), Color(0x14FFFFFF)],
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x730C0914),
+                        blurRadius: 60,
+                        offset: Offset(0, 20),
+                      ),
+                    ],
+                    borderRadius:
+                        BorderRadius.circular(borderRadius - borderWidth),
+                  ),
+                  child: child,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -518,13 +541,18 @@ class GlassPanel extends StatelessWidget {
 // Hero Page
 class HeroPage extends StatelessWidget {
   final AnnualReportData reportData;
+  final bool isPreview;
 
-  const HeroPage({super.key, required this.reportData});
+  const HeroPage({
+    super.key,
+    required this.reportData,
+    this.isPreview = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final momentumScore = min(100, (reportData.daysSpent *100 / 365)).round();
-    // 先创建四个 widget（只写一次）
+    final momentumScore = min(100, (reportData.daysSpent * 100 / 365)).round();
+
     final radialWidget = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -538,90 +566,81 @@ class HeroPage extends StatelessWidget {
     );
 
     final items = <Widget>[
-                    MetricCard(
-                      label: 'Problems Solved',
-                      value: reportData.problemSolved.toString(),
-                      sub: '${(reportData.problemSolvedPercent * 100).round()}% percentile in solving',
-                    ),
-                    MetricCard(
-                      label: 'Points Collected',
-                      value: reportData.pointGained.toString(),
-                      sub: '${(reportData.pointGainedPercent * 100).round()}% percentile in points',
-                    ),
-                    MetricCard(
-                      label: 'Days Activated',
-                      value: reportData.daysSpent.toString(),
-                      sub: 'Active days with a solve',
-                    ),
-                    radialWidget,
-                ];
+      MetricCard(
+        label: 'Problems Solved',
+        value: reportData.problemSolved.toString(),
+        sub:
+            '${(reportData.problemSolvedPercent * 100).round()}% percentile in solving',
+      ),
+      MetricCard(
+        label: 'Points Collected',
+        value: reportData.pointGained.toString(),
+        sub:
+            '${(reportData.pointGainedPercent * 100).round()}% percentile in points',
+      ),
+      MetricCard(
+        label: 'Days Activated',
+        value: reportData.daysSpent.toString(),
+        sub: 'Active days with a solve',
+      ),
+      radialWidget,
+    ];
+
     return GlassPanel(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('TopsOJ Wrapped', style: TextStyle(fontSize: 12, letterSpacing: 2.8, color: Color(0xFF89F2FF))),
-                Text('Welcome back, $username.', style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold)),
-                const Text('We stitched together your boldest wins, toughest battles, and most glittering streaks.', style: TextStyle(color: Color(0xB3FFFFFF))),
-                const SizedBox(height: 24),
-                if (isPreview) const Padding(
-                  padding: EdgeInsets.only(top: 16),
-                  child: Text('Preview mode enabled. Only you can see this right now.', style: TextStyle(color: Colors.yellow)),
+          // Header block
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('TopsOJ Wrapped',
+                  style: TextStyle(
+                      fontSize: 12,
+                      letterSpacing: 2.8,
+                      color: Color(0xFF89F2FF))),
+              Text('Welcome back, $username.',
+                  style: const TextStyle(
+                      fontSize: 48, fontWeight: FontWeight.bold)),
+              const Text(
+                  'We stitched together your boldest wins, toughest battles, and most glittering streaks.',
+                  style: TextStyle(color: Color(0xB3FFFFFF))),
+              const SizedBox(height: 12),
+              if (isPreview)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Preview mode enabled. Only you can see this right now.',
+                    style: TextStyle(color: Colors.yellow),
+                  ),
                 ),
-              ],
-            ),
+            ],
           ),
-                
 
+          const SizedBox(height: 20),
+
+          // Responsive grid: 使用 Expanded 包裹 GridView 以填充剩余高度
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 1500;
-
-                if (isWide) {
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          items[0],
-                          items[1],
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          items[2],
-                          items[3],
-                        ],
-                      ),
-                    ],
-                  );
-                } else {
-                  // 窄屏：一个 Column 竖直排列
-                  return SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        items[0],
-                        const SizedBox(height: 16),
-                        items[1],
-                        const SizedBox(height: 16),
-                        items[2],
-                        const SizedBox(height: 16),
-                        items[3],
-                      ],
-                    ),
-                  );
-                }
+                // 这里用 maxCrossAxisExtent 控制每个卡片的最大宽度（窗口越宽，列数自动增加）
+                // 调整 maxCrossAxisExtent 与 childAspectRatio 以匹配你的卡片视觉比例
+                return GridView(
+                  padding: EdgeInsets.zero,
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 520, // 每格最大宽度（改这个值来控制列数断点）
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 2.2, // 宽高比，按需要调整
+                  ),
+                  children: items,
+                );
               },
             ),
           ),
+          const SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Text("scroll down for more")]),
         ],
       ),
     );
@@ -968,12 +987,14 @@ class TimelinePage extends StatelessWidget {
             details: '${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points',
             note: 'You were really on the grind that day',
         ),
+        const SizedBox(height: 16),
         TimelineChip(
             title: 'Most active month',
             subtitle: activeMonth,
             details: '${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points',
             note: 'What an exciting month!',
         ),
+        const SizedBox(height: 16),
         TimelineChip(
             title: 'Earliest win',
             subtitle: 'At ${reportData.earliestSubmission ?? "--"}',
@@ -1011,7 +1032,6 @@ class TimelineChip extends StatelessWidget {
   }
 }
 
-// SummaryPage - Unified all data
 class SummaryPage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -1025,48 +1045,91 @@ class SummaryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summary = getSummary();
-    return SingleChildScrollView(
-      child: GlassPanel(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Your Wrapped Summary', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Text(summary, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE84C78),
-                shape: const StadiumBorder(),
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            // 关键：确保子部件最小高度为可用高度 -> 可以撑满屏幕
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: GlassPanel(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                // 让 Column 占据 ConstrainedBox 给定的最小高度
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Your Wrapped Summary',
+                          style:
+                              TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      Text(summary, style: const TextStyle(fontSize: 16)),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children:[
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE84C78),
+                              shape: const StadiumBorder(),
+                            ),
+                            onPressed: () async {
+                              await Clipboard.setData(ClipboardData(text: summary));
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Summary copied!')));
+                              }
+                            },
+                            child: const Text('Copy Summary'),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE84C78),
+                              shape: const StadiumBorder(),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text('Back'),
+                          ),
+                        ]
+                      ),
+                    ],
+                  ),
+
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 32),
+                      const Text('All Highlights:',
+                          style:
+                              TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      Text('Problems Solved: ${reportData.problemSolved} (${(reportData.problemSolvedPercent * 100).round()}% percentile)'),
+                      Text('Points Collected: ${reportData.pointGained} (${(reportData.pointGainedPercent * 100).round()}% percentile)'),
+                      Text('Days Activated: ${reportData.daysSpent}'),
+                      Text('Most Attempted Challenge: ${reportData.mostAttemptedProblemName ?? "--"} (${reportData.numAttemptsMostAttempted} attempts)'),
+                      Text('Highest Rating: ${reportData.highestRating > 0 ? reportData.highestRating : "Unrated"}'),
+                      Text('Highest Rating Contest: ${reportData.highestRatingContestName ?? "--"}'),
+                      Text('Highest Rating Ranking: #${reportData.highestRatingRanking}'),
+                      Text('Contests Participated: ${reportData.numContestParticipated}'),
+                      Text('Highest Contest Ranking: #${reportData.highestContestRanking}'),
+                      Text('Highest Ranking Contest: ${reportData.highestRankingContestName ?? "--"}'),
+                      Text('Most Active Day: $reportYear.${reportData.mostActiveDate ?? "--"} (${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points)'),
+                      Text('Most Active Month: ${monthNames[reportData.mostActiveMonth] ?? "--"} (${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points)'),
+                      Text('Earliest Win: At ${reportData.earliestSubmission ?? "--"}, solved ${reportData.earliestSubmitProblemName ?? "--"}'),
+                    ],
+                  ),
+                ],
               ),
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: summary));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Summary copied!')));
-                }
-              },
-              child: const Text('Copy Summary'),
             ),
-            const SizedBox(height: 32),
-            const Text('All Highlights:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Text('Problems Solved: ${reportData.problemSolved} (${(reportData.problemSolvedPercent * 100).round()}% percentile)'),
-            Text('Points Collected: ${reportData.pointGained} (${(reportData.pointGainedPercent * 100).round()}% percentile)'),
-            Text('Days Activated: ${reportData.daysSpent}'),
-            Text('Most Attempted Challenge: ${reportData.mostAttemptedProblemName ?? "--"} (${reportData.numAttemptsMostAttempted} attempts)'),
-            Text('Highest Rating: ${reportData.highestRating > 0 ? reportData.highestRating : "Unrated"}'),
-            Text('Highest Rating Contest: ${reportData.highestRatingContestName ?? "--"}'),
-            Text('Highest Rating Ranking: #${reportData.highestRatingRanking}'),
-            Text('Contests Participated: ${reportData.numContestParticipated}'),
-            Text('Highest Contest Ranking: #${reportData.highestContestRanking}'),
-            Text('Highest Ranking Contest: ${reportData.highestRankingContestName ?? "--"}'),
-            Text('Most Active Day: $reportYear.${reportData.mostActiveDate ?? "--"} (${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points)'),
-            Text('Most Active Month: ${monthNames[reportData.mostActiveMonth] ?? "--"} (${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points)'),
-            Text('Earliest Win: At ${reportData.earliestSubmission ?? "--"}, solved ${reportData.earliestSubmitProblemName ?? "--"}'),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

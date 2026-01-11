@@ -334,6 +334,16 @@ class _MainPageState extends State<MainPage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => AnnualReportPage()),
+          );
+        },
+        label: const Text('2025 wrap'),
+        icon: const Icon(Icons.calendar_today), // 可选
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
@@ -346,16 +356,6 @@ class _MainPageState extends State<MainPage> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        ElevatedButton(
-                          onPressed: (){
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => AnnualReportPage(),
-                              ),
-                            );
-                          },
-                          child: const Text('2025 wrap'),
-                        ),
                         const Text("Filter by solved: "),
                         Expanded(
                           child: Slider(
