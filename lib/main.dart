@@ -13,6 +13,7 @@ import 'package:TopsOJ/cached_problem_page.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/ranking_page.dart';
 import 'package:TopsOJ/login_page.dart';
+import 'package:TopsOJ/2025_annual_wrap.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,7 @@ class TopsOJ extends StatelessWidget {
       routes: {
         '/home': (context) => MainPage(),
         '/ranking': (context) => RankingPage(),
+        '/2025wrap': (context) => AnnualReportPage(),
       },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -344,6 +346,16 @@ class _MainPageState extends State<MainPage> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
+                        ElevatedButton(
+                          onPressed: (){
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => AnnualReportPage(),
+                              ),
+                            );
+                          },
+                          child: const Text('2025 wrap'),
+                        ),
                         const Text("Filter by solved: "),
                         Expanded(
                           child: Slider(
