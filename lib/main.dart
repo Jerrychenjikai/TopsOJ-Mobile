@@ -13,7 +13,7 @@ import 'package:TopsOJ/cached_problem_page.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/ranking_page.dart';
 import 'package:TopsOJ/login_page.dart';
-import 'package:TopsOJ/2025_annual_wrap.dart';
+import 'package:TopsOJ/2025_annual_wrap.dart' as wrap2025;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +31,7 @@ class TopsOJ extends StatelessWidget {
       routes: {
         '/home': (context) => MainPage(),
         '/ranking': (context) => RankingPage(),
-        '/2025wrap': (context) => AnnualReportPage(),
+        '/2025wrap': (context) => wrap2025.AnnualReportPage(),
       },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -84,7 +84,8 @@ class MainPage extends StatefulWidget {
   _MainPageState createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage>{
+
   String _response = '';
   Map<String, dynamic> _userinfo={};
   final TextEditingController _problemIdController = TextEditingController();
@@ -337,13 +338,12 @@ class _MainPageState extends State<MainPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => AnnualReportPage()),
+            MaterialPageRoute(builder: (_) => wrap2025.AnnualReportPage()),
           );
         },
         label: const Text('2025 wrap'),
-        icon: const Icon(Icons.calendar_today), // 可选
+        icon: const Icon(Icons.calendar_today),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
