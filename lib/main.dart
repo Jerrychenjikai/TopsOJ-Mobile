@@ -85,6 +85,7 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage>{
+  double _upperHeight = 150;
 
   String _response = '';
   Map<String, dynamic> _userinfo={};
@@ -349,93 +350,129 @@ class _MainPageState extends State<MainPage>{
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Text("Filter by solved: "),
-                        Expanded(
-                          child: Slider(
-                            value: _solved,
-                            min: 0,
-                            max: 2,
-                            divisions: 2,
-                            label: ['Incorrect', 'All', 'Correct'][_solved.toInt()],
-                            onChanged: (double value) {
-                              setState(() {
-                                _solved = value;
-                                _getProblems();
-                              });
-                            },
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  double maxHeight = constraints.maxHeight;
+                  double maxUpper = maxHeight / 2;
+                  _upperHeight = _upperHeight.clamp(0, maxUpper);
+                  return Column(
+                    children: [
+                      SizedBox(
+                        height: _upperHeight,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Text("Filter by solved: "),
+                                  Expanded(
+                                    child: Slider(
+                                      value: _solved,
+                                      min: 0,
+                                      max: 2,
+                                      divisions: 2,
+                                      label: ['Incorrect', 'All', 'Correct'][_solved.toInt()],
+                                      onChanged: (double value) {
+                                        setState(() {
+                                          _solved = value;
+                                          _getProblems();
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _problemIdController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Enter Problem Name/ID',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onSubmitted: (value){
+                                        _getProblems();
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      _page=1;
+                                      _getProblems();
+                                    },
+                                    child: const Icon(Icons.search),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _problemIdController,
-                            decoration: const InputDecoration(
-                              labelText: 'Enter Problem Name/ID',
-                              border: OutlineInputBorder(),
-                            ),
-                            onSubmitted: (value){
-                              _getProblems();
-                            },
+                      ),
+                      GestureDetector(
+                        onVerticalDragUpdate: (details) {
+                          setState(() {
+                            _upperHeight += details.delta.dy;
+                            _upperHeight = _upperHeight.clamp(0, maxUpper);
+                          });
+                        },
+                        child: Container(
+                          height: 20,
+                          color: Theme.of(context).colorScheme.surfaceContainerLow,
+                          child: const Center(
+                            child: Icon(Icons.drag_handle),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            _page=1;
-                            _getProblems();
-                          },
-                          child: const Icon(Icons.search),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  if (_page > 1)
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _page = _page - 1;
+                                          _getProblems();
+                                        });
+                                      },
+                                      child: const Icon(Icons.arrow_back),
+                                    )
+                                  else
+                                    const SizedBox(width: 60), // 占位对齐
+
+                                  // 中间页数文字
+                                  Text('Page $_page/${(_problems_cnt/10).ceil()}', style: const TextStyle(fontSize: 16)),
+
+                                  if (_page * 10 < _problems_cnt)
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _page = _page + 1;
+                                          _getProblems();//updates _render
+                                        });
+                                      },
+                                      child: const Icon(Icons.arrow_forward),
+                                    )
+                                  else
+                                    const SizedBox(width: 60), // 占位对齐
+                                ],
+                              ),
+                              ..._render(),//list of problems
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  
-                    const SizedBox(height: 25),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (_page > 1)
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _page = _page - 1;
-                                _getProblems();
-                              });
-                            },
-                            child: const Icon(Icons.arrow_back),
-                          )
-                        else
-                          const SizedBox(width: 60), // 占位对齐
-
-                        // 中间页数文字
-                        Text('Page $_page/${(_problems_cnt/10).ceil()}', style: const TextStyle(fontSize: 16)),
-
-                        if (_page * 10 < _problems_cnt)
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _page = _page + 1;
-                                _getProblems();
-                              });
-                            },
-                            child: const Icon(Icons.arrow_forward),
-                          )
-                        else
-                          const SizedBox(width: 60), // 占位对齐
-                      ],
-                    ),
-                    ..._render(),
-                  ],
-                ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
