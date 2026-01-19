@@ -85,7 +85,7 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage>{
-  double _upperHeight = 150;
+  double _splitRatio = 0.3;
 
   String _response = '';
   Map<String, dynamic> _userinfo={};
@@ -345,137 +345,209 @@ class _MainPageState extends State<MainPage>{
         label: const Text('2025 wrap'),
         icon: const Icon(Icons.calendar_today),
       ),
+
+      // 在 build 方法中替换 body 为：
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  double maxHeight = constraints.maxHeight;
-                  double maxUpper = maxHeight / 2;
-                  _upperHeight = _upperHeight.clamp(0, maxUpper);
-                  return Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxHeight = constraints.maxHeight;
+            final maxWidth = constraints.maxWidth;
+            final isLandscape = maxWidth > maxHeight;
+            const maxSplit = 0.5;
+
+            Widget buildFilter() {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 8),
+                  Row(
                     children: [
-                      SizedBox(
-                        height: _upperHeight,
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  const Text("Filter by solved: "),
-                                  Expanded(
-                                    child: Slider(
-                                      value: _solved,
-                                      min: 0,
-                                      max: 2,
-                                      divisions: 2,
-                                      label: ['Incorrect', 'All', 'Correct'][_solved.toInt()],
-                                      onChanged: (double value) {
-                                        setState(() {
-                                          _solved = value;
-                                          _getProblems();
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _problemIdController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Enter Problem Name/ID',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      onSubmitted: (value){
-                                        _getProblems();
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      _page=1;
-                                      _getProblems();
-                                    },
-                                    child: const Icon(Icons.search),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onVerticalDragUpdate: (details) {
-                          setState(() {
-                            _upperHeight += details.delta.dy;
-                            _upperHeight = _upperHeight.clamp(0, maxUpper);
-                          });
-                        },
-                        child: Container(
-                          height: 20,
-                          color: Theme.of(context).colorScheme.surfaceContainerLow,
-                          child: const Center(
-                            child: Icon(Icons.drag_handle),
-                          ),
-                        ),
-                      ),
+                      const Text("Filter by solved: "),
                       Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  if (_page > 1)
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _page = _page - 1;
-                                          _getProblems();
-                                        });
-                                      },
-                                      child: const Icon(Icons.arrow_back),
-                                    )
-                                  else
-                                    const SizedBox(width: 60), // 占位对齐
-
-                                  // 中间页数文字
-                                  Text('Page $_page/${(_problems_cnt/10).ceil()}', style: const TextStyle(fontSize: 16)),
-
-                                  if (_page * 10 < _problems_cnt)
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _page = _page + 1;
-                                          _getProblems();//updates _render
-                                        });
-                                      },
-                                      child: const Icon(Icons.arrow_forward),
-                                    )
-                                  else
-                                    const SizedBox(width: 60), // 占位对齐
-                                ],
-                              ),
-                              ..._render(),//list of problems
-                            ],
+                        child: DropdownButton<int>(
+                          value: _solved.toInt(),           // 当前选中值 (0,1,2)
+                          isExpanded: true,                 // 让下拉菜单占满宽度
+                          elevation: 4,
+                          borderRadius: BorderRadius.circular(8),
+                          underline: Container(
+                            height: 2,
+                            color: Theme.of(context).primaryColor,
                           ),
+                          items: const [
+                            DropdownMenuItem<int>(
+                              value: 0,
+                              child: Text('Incorrect'),
+                            ),
+                            DropdownMenuItem<int>(
+                              value: 1,
+                              child: Text('All'),
+                            ),
+                            DropdownMenuItem<int>(
+                              value: 2,
+                              child: Text('Correct'),
+                            ),
+                          ],
+                          onChanged: (int? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _solved = newValue.toDouble();  // 保持 _solved 是 double 类型
+                                _getProblems();
+                              });
+                            }
+                          },
                         ),
                       ),
                     ],
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _problemIdController,
+                          decoration: const InputDecoration(
+                            labelText: 'Enter Problem Name/ID',
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (value) {
+                            _getProblems();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          _page = 1;
+                          _getProblems();
+                        },
+                        child: const Icon(Icons.search),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+
+            Widget buildList() {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (_page > 1)
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _page = _page - 1;
+                              _getProblems();
+                            });
+                          },
+                          child: const Icon(Icons.arrow_back),
+                        )
+                      else
+                        const SizedBox(width: 60),
+                      Text(
+                        'Page $_page/${(_problems_cnt / 10).ceil()}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      if (_page * 10 < _problems_cnt)
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _page = _page + 1;
+                              _getProblems();
+                            });
+                          },
+                          child: const Icon(Icons.arrow_forward),
+                        )
+                      else
+                        const SizedBox(width: 60),
+                    ],
+                  ),
+                  ..._render(),
+                ],
+              );
+            }
+
+            if (isLandscape) {
+              // 横向布局：左侧题目列表，右侧过滤器
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 左侧：题目列表（占剩余空间）
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: buildList(),
+                    ),
+                  ),
+                  // 拖拽把手（垂直条）
+                  GestureDetector(
+                    onHorizontalDragUpdate: (details) {
+                      setState(() {
+                        _splitRatio -= details.delta.dx / maxWidth;
+                        _splitRatio = _splitRatio.clamp(0.0, maxSplit);
+                      });
+                    },
+                    child: Container(
+                      width: 20,
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      child: const Center(
+                        child: RotatedBox(
+                          quarterTurns: 1, // 旋转把手图标，使其适合横向拖拽
+                          child: Icon(Icons.drag_handle),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 右侧：过滤器（宽度根据比例）
+                  if (_splitRatio > 0)
+                    SizedBox(
+                      width: maxWidth * _splitRatio,
+                      child: SingleChildScrollView(
+                        child: buildFilter(),
+                      ),
+                    ),
+                ],
+              );
+            } else {
+              // 纵向布局：上部过滤器，下部题目列表
+              return Column(
+                children: [
+                  // 上部：过滤器
+                  SizedBox(
+                    height: maxHeight * _splitRatio,
+                    child: SingleChildScrollView(
+                      child: buildFilter(),
+                    ),
+                  ),
+                  // 拖拽把手（水平条）
+                  GestureDetector(
+                    onVerticalDragUpdate: (details) {
+                      setState(() {
+                        _splitRatio += details.delta.dy / maxHeight;
+                        _splitRatio = _splitRatio.clamp(0.0, maxSplit);
+                      });
+                    },
+                    child: Container(
+                      height: 20,
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      child: const Center(
+                        child: Icon(Icons.drag_handle),
+                      ),
+                    ),
+                  ),
+                  // 下部：题目列表（占剩余空间）
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: buildList(),
+                    ),
+                  ),
+                ],
+              );
+            }
+          },
         ),
       ),
     );
