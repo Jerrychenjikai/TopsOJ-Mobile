@@ -210,82 +210,82 @@ class _AnnualReportPageState extends State<AnnualReportPage> with TickerProvider
     return null;
   }
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    body: DefaultTextStyle(
-      // 为所有子Text设置默认浅色（merge现有style，未指定color的会用这个）
-      style: const TextStyle(color: Colors.white70),  // 浅白色，柔和；或 Colors.grey[200]
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          // 强制dark colorScheme，基于根种子颜色生成暗变体
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
-            brightness: Brightness.dark,  // 切换到暗模式，确保系统用浅文本
-          ).copyWith(
-            onSurface: Colors.white70,    // 默认表面文本浅色
-            onBackground: Colors.white70, // 背景文本浅色
-          ),
-          // 简化textTheme覆盖：只覆盖常见variants（Flutter会自动匹配）
-          textTheme: Theme.of(context).textTheme.copyWith(
-            bodyLarge: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
-            bodyMedium: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-            bodySmall: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
-            displayLarge: Theme.of(context).textTheme.displayLarge?.copyWith(color: Colors.white70),
-            headlineLarge: Theme.of(context).textTheme.headlineLarge?.copyWith(color: Colors.white70),
-            headlineMedium: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white70),
-            labelMedium: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white70),
-            titleMedium: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
-          ),
-          // 覆盖其他组件（如Chip、Button）以确保浅文本
-          chipTheme: Theme.of(context).chipTheme.copyWith(
-            labelStyle: Theme.of(context).chipTheme.labelStyle?.copyWith(color: Colors.white70),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.white70,  // 按钮文本浅色
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: DefaultTextStyle(
+        // 为所有子Text设置默认浅色（merge现有style，未指定color的会用这个）
+        style: const TextStyle(color: Colors.white70),  // 浅白色，柔和；或 Colors.grey[200]
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            // 强制dark colorScheme，基于根种子颜色生成暗变体
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
+              brightness: Brightness.dark,  // 切换到暗模式，确保系统用浅文本
+            ).copyWith(
+              onSurface: Colors.white70,    // 默认表面文本浅色
+              onBackground: Colors.white70, // 背景文本浅色
+            ),
+            // 简化textTheme覆盖：只覆盖常见variants（Flutter会自动匹配）
+            textTheme: Theme.of(context).textTheme.copyWith(
+              bodyLarge: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
+              bodyMedium: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+              bodySmall: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+              displayLarge: Theme.of(context).textTheme.displayLarge?.copyWith(color: Colors.white70),
+              headlineLarge: Theme.of(context).textTheme.headlineLarge?.copyWith(color: Colors.white70),
+              headlineMedium: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white70),
+              labelMedium: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white70),
+              titleMedium: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
+            ),
+            // 覆盖其他组件（如Chip、Button）以确保浅文本
+            chipTheme: Theme.of(context).chipTheme.copyWith(
+              labelStyle: Theme.of(context).chipTheme.labelStyle?.copyWith(color: Colors.white70),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white70,  // 按钮文本浅色
+              ),
+            ),
+            // 可选：进度条等用浅色
+            progressIndicatorTheme: const ProgressIndicatorThemeData(
+              color: Colors.white70,
             ),
           ),
-          // 可选：进度条等用浅色
-          progressIndicatorTheme: const ProgressIndicatorThemeData(
-            color: Colors.white70,
+          child: FutureBuilder<Map<String, dynamic>?>(
+            future: _dataFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LoadingPage();
+              }
+              final data = snapshot.data;
+              if (data == null || (data['problem solved'] ?? 0) <= 0) {
+                return const InactivePage();
+              }
+              final reportData = AnnualReportData.fromJson(data);
+              return Stack(
+                children: [
+                  BackgroundAnimation(scrollOffset: _scrollOffset, animation: _animationController.view),
+                  PageView(
+                    controller: _pageController,
+                    scrollDirection: Axis.vertical,
+                    children: [
+                      HeroPage(reportData: reportData),
+                      SolverPersonaPage(reportData: reportData),
+                      TopPercentilePage(reportData: reportData),
+                      MostAttemptedPage(reportData: reportData),
+                      RatingHighsPage(reportData: reportData),
+                      ContestHighlightsPage(reportData: reportData),
+                      TimelinePage(reportData: reportData),
+                      SummaryPage(reportData: reportData),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
         ),
-        child: FutureBuilder<Map<String, dynamic>?>(
-          future: _dataFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const LoadingPage();
-            }
-            final data = snapshot.data;
-            if (data == null || (data['problem solved'] ?? 0) <= 0) {
-              return const InactivePage();
-            }
-            final reportData = AnnualReportData.fromJson(data);
-            return Stack(
-              children: [
-                BackgroundAnimation(scrollOffset: _scrollOffset, animation: _animationController.view),
-                PageView(
-                  controller: _pageController,
-                  scrollDirection: Axis.vertical,
-                  children: [
-                    HeroPage(reportData: reportData),
-                    SolverPersonaPage(reportData: reportData),
-                    TopPercentilePage(reportData: reportData),
-                    MostAttemptedPage(reportData: reportData),
-                    RatingHighsPage(reportData: reportData),
-                    ContestHighlightsPage(reportData: reportData),
-                    TimelinePage(reportData: reportData),
-                    SummaryPage(reportData: reportData),
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 // Loading Page
@@ -294,19 +294,37 @@ class LoadingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: GlassPanel(
-        child: Padding(
-          padding: EdgeInsets.all(40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Loading your year in review...', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              Text('Charging the glassmorphic engines and calculating your glow.'),
-            ],
+    return Scaffold(
+      body: Stack(
+        children: [
+          // 背景動畫 - 需要傳入 Animation
+          // 這裡假設你已經在父層級有 AnimationController
+          // 如果沒有，請參考下面「重要注意事項」
+          const BackgroundAnimation(
+            animation: AlwaysStoppedAnimation(0.5), // 臨時替代，正式請用真的動畫
+            scrollOffset: 0.0,
           ),
-        ),
+          
+          // 主要內容（保持置中）
+          const Center(
+            child: GlassPanel(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Loading your year in review...',
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 16),
+                    Text('Charging the glassmorphic engines and calculating your glow.'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -318,26 +336,46 @@ class InactivePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: GlassPanel(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('No Wrapped for this year', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              const Text('You were inactive this year, so there isn\'t a TopsOJ Wrapped to show yet. Jump back in and we\'ll be ready for the next one!'),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Start Solving'),
-              ),
-            ],
+    return Scaffold(
+      body: Stack(
+        children: [
+          // 同樣的背景
+          const BackgroundAnimation(
+            animation: AlwaysStoppedAnimation(0.5), // 臨時替代
+            scrollOffset: 0.0,
           ),
-        ),
+          
+          // 主要內容
+          Center(
+            child: GlassPanel(
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'No Wrapped for this year',
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'You were inactive this year, so there isn\'t a TopsOJ Wrapped to show yet.\n'
+                      'Jump back in and we\'ll be ready for the next one!',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Start Solving'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
