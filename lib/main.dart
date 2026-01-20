@@ -346,7 +346,6 @@ class _MainPageState extends State<MainPage>{
         icon: const Icon(Icons.calendar_today),
       ),
 
-      // 在 build 方法中替换 body 为：
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: LayoutBuilder(
@@ -484,12 +483,18 @@ class _MainPageState extends State<MainPage>{
                   Expanded(
                     child: buildList(),
                   ),
+                  const SizedBox(width: 10),
                   // 拖拽把手（垂直条）
                   GestureDetector(
                     onHorizontalDragUpdate: (details) {
                       setState(() {
                         _splitRatio -= details.delta.dx / maxWidth;
                         _splitRatio = _splitRatio.clamp(0.0, maxSplit);
+                      });
+                    },
+                    onTap: () {
+                      setState(() {
+                        _splitRatio = _splitRatio < 0.15 ? 0.3 : 0.0;
                       });
                     },
                     child: Container(
@@ -504,13 +509,16 @@ class _MainPageState extends State<MainPage>{
                     ),
                   ),
                   // 右侧：过滤器（宽度根据比例）
-                  if (_splitRatio > 0)
-                    SizedBox(
-                      width: maxWidth * _splitRatio,
-                      child: SingleChildScrollView(
-                        child: buildFilter(),
+                  if (_splitRatio > 0) 
+                    ...[
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        width: maxWidth * _splitRatio,
+                        child: SingleChildScrollView(
+                          child: buildFilter(),
+                        ),
                       ),
-                    ),
+                    ],
                 ],
               );
             } else {
@@ -530,6 +538,11 @@ class _MainPageState extends State<MainPage>{
                       setState(() {
                         _splitRatio += details.delta.dy / maxHeight;
                         _splitRatio = _splitRatio.clamp(0.0, maxSplit);
+                      });
+                    },
+                    onTap: () {
+                      setState(() {
+                        _splitRatio = _splitRatio < 0.15 ? 0.3 : 0.0;
                       });
                     },
                     child: Container(
