@@ -466,7 +466,11 @@ class _MainPageState extends State<MainPage>{
                         const SizedBox(width: 60),
                     ],
                   ),
-                  ..._render(),
+                  Expanded(
+                    child: SingleChildScrollView(child: Column(
+                      children: _render(),
+                    ),),
+                  ),
                 ],
               );
             }
@@ -478,9 +482,7 @@ class _MainPageState extends State<MainPage>{
                 children: [
                   // 左侧：题目列表（占剩余空间）
                   Expanded(
-                    child: SingleChildScrollView(
-                      child: buildList(),
-                    ),
+                    child: buildList(),
                   ),
                   // 拖拽把手（垂直条）
                   GestureDetector(
@@ -540,9 +542,7 @@ class _MainPageState extends State<MainPage>{
                   ),
                   // 下部：题目列表（占剩余空间）
                   Expanded(
-                    child: SingleChildScrollView(
-                      child: buildList(),
-                    ),
+                    child: buildList(),
                   ),
                 ],
               );
