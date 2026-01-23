@@ -6,6 +6,7 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/problem_page.dart';
@@ -293,31 +294,6 @@ class _MainPageState extends State<MainPage>{
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => RankingPage()),
-                        );
-                      },
-                      child: const Text("Rankings"),
-                    ),
-                    ElevatedButton(
-                      onPressed: (){
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => CachedPage(),
-                          ),
-                        );
-                      },
-                      child: const Text('Cached problems'),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -337,14 +313,64 @@ class _MainPageState extends State<MainPage>{
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => wrap2025.AnnualReportPage()),
-          );
-        },
-        label: const Text('2025 wrap'),
-        icon: const Icon(Icons.calendar_today),
+
+      floatingActionButton: SpeedDial(
+        child: const Icon(Icons.add),
+
+        // 展开时的图标（常用来放 ×）
+        closeManually: false,
+        activeChild: const Icon(Icons.close),
+
+        // 方向：最常用的是 up
+        direction: SpeedDialDirection.up,
+
+        // 动画曲线
+        animationCurve: Curves.easeInOutCubic,
+
+        // 背景遮罩（可选）
+        overlayColor: Theme.of(context).colorScheme.secondary,
+        overlayOpacity: 0.4,
+
+        // 子按钮间距
+        spacing: 8,
+        // 与主按钮的距离
+        spaceBetweenChildren: 12,
+
+        children: [
+          SpeedDialChild(
+            child: const Icon(Icons.bar_chart),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+            foregroundColor: Colors.black,
+            label: '2025 Wrap',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => wrap2025.AnnualReportPage()),
+              );
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.leaderboard),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+            foregroundColor: Colors.black,
+            label: 'Rankings',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => RankingPage()),
+              );
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.save),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+            foregroundColor: Colors.black,
+            label: 'Cached Problems',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => CachedPage()),
+              );
+            },
+          ),
+        ],
       ),
 
       body: SafeArea(child: 
