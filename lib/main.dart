@@ -349,7 +349,7 @@ class _MainPageState extends State<MainPage>{
             child: const Icon(Icons.sports_mma),
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
             foregroundColor: Colors.black,
-            label: 'Battle',
+            label: 'Battle (under development)',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => BattlePage()),

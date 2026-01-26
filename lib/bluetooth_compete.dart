@@ -13,8 +13,8 @@ Procedure:
 (for now assume login credit will not expire during match)
 
 1. 发现与连接:
-   双方 scan + advertise manufacturerData，the one with smaller deviceId connects。
-   发起方（即将成为 Host）connect 成功 → Host。
+   由用户指定host和client
+   host广播，client扫描
 
 2. 握手与鉴权
    Host asks user numQuestions and pointInterval
