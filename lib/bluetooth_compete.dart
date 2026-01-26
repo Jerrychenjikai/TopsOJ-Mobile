@@ -106,7 +106,10 @@ class BattleController extends StateNotifier<BattleState> {
     // Ensure login (原有代码)
     final apikey = (await checkLogin())['apikey'];
     if (apikey == null) {
-      print("Login expired. Please log in again");
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage(gotopage: '/battle')),
+        (route) => false,
+      );
       return;
     }
 
