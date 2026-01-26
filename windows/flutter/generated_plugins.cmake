@@ -3,6 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  ble_peripheral
+  flutter_blue_plus_winrt
+  permission_handler_windows
   url_launcher_windows
 )
 

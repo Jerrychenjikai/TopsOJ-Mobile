@@ -40,6 +40,18 @@ Future<Map<String, dynamic>> checkApiKeyValid(String apiKey) async {
   }
 }
 
+Future<dynamic> checkLogin() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String apiKey = prefs.getString('apiKey') ?? '';
+  if (apiKey.isEmpty) return null;
+  final response = await checkApiKeyValid(apiKey);
+  if (response['statusCode'] == 200){
+    response['apikey']=apiKey;
+    return response;
+  }
+  return null;
+}
+
 Future<Map<String, dynamic>> login(String username, String password) async {
   final uri = Uri.parse('https://topsoj.com/api/login');
 

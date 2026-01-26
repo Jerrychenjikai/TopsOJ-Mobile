@@ -60,7 +60,7 @@ class _CachedPageState extends State<CachedPage> {
     });
   }
 
-  Future<void> _gotoProblem([String? id]) async {
+  Future<void> _gotoCachedProblem([String? id]) async {
     final String problemId = (id ?? "");
     if (problemId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,7 +102,7 @@ class _CachedPageState extends State<CachedPage> {
               });
             },
           ),
-          onTap: () => _gotoProblem(problem.key),
+          onTap: () => _gotoCachedProblem(problem.key),
         ),
       );
     }

@@ -172,20 +172,11 @@ class _AnnualReportPageState extends State<AnnualReportPage> with TickerProvider
     _animationController.dispose();
     super.dispose();
   }
-  Future<String?> _checkLogin() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String apiKey = prefs.getString('apiKey') ?? '';
-    if (apiKey.isEmpty) return null;
-    final response = await checkApiKeyValid(apiKey);
-    if (response['statusCode'] == 200){
-      username = response['username'];
-      return apiKey;
-    }
-    return null;
-  }
 
   Future<Map<String, dynamic>?> fetchData() async {
-    String? apiKey = await _checkLogin();
+    final s = await checkLogin();
+    String? apiKey = s['apikey'];
+    username = s['username'];
     if(apiKey == null){
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginPage(gotopage: '/2025wrap')),

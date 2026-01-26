@@ -1,5 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    
+    <!-- 申请蓝牙权限 -->
+    <!-- BLE 硬件声明（可选，但推荐） -->
+	<uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+	<!-- Android 12+ (API 31+) 主权限：无位置需求模式 -->
+	<uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+		android:usesPermissionFlags="neverForLocation" />
+	<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+	<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+	<!-- 旧版 Android（<= Android 11 / API 30）兼容权限，用 maxSdkVersion 限制只在旧系统生效 -->
+	<uses-permission android:name="android.permission.BLUETOOTH"
+		android:maxSdkVersion="30" />
+	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+		android:maxSdkVersion="30" />
+	<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+		android:maxSdkVersion="30" />
+		
     <application
         android:label="TopsOJ"
         android:name="${applicationName}"

@@ -112,6 +112,9 @@ class _ProblemPageState extends State<ProblemPage> {
           response = {'statusCode': -2, 'data': 'You are offline. Answer recorded in cache'};
         }
       }
+      if(response['statusCode'] == 401){
+        response['data'] = "Login expired. Please log in again";
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(response['statusCode'] == -2
           ? '${response['data']}'

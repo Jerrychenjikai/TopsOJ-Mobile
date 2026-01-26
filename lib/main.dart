@@ -15,6 +15,7 @@ import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/ranking_page.dart';
 import 'package:TopsOJ/login_page.dart';
 import 'package:TopsOJ/2025_annual_wrap.dart' as wrap2025;
+import 'package:TopsOJ/bluetooth_compete.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,7 @@ class TopsOJ extends StatelessWidget {
         '/home': (context) => MainPage(),
         '/ranking': (context) => RankingPage(),
         '/2025wrap': (context) => wrap2025.AnnualReportPage(),
+        '/battle': (context) => BattlePage(),
       },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -49,18 +51,13 @@ class TopsOJ extends StatelessWidget {
 class RootPage extends StatelessWidget {
   const RootPage({super.key});
 
-  Future<bool> _checkLogin() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String apiKey = prefs.getString('apiKey') ?? '';
-    if (apiKey.isEmpty) return false;
-    final response = await checkApiKeyValid(apiKey);
-    return response['statusCode'] == 200;
-  }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: _checkLogin(),
+      future: checkLogin().then((value) {
+        if (value == null) return false;
+        return value['apikey'] != null;
+      }),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(
@@ -146,7 +143,7 @@ class _MainPageState extends State<MainPage>{
   }
 
   void _gotoProblem([String? id]) {
-    final String problemId = (id ?? _problemIdController.text.trim());
+    final String problemId = (id ?? "");
     print("problem id:" + problemId);
     if (problemId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -349,7 +346,18 @@ class _MainPageState extends State<MainPage>{
             },
           ),
           SpeedDialChild(
-            child: const Icon(Icons.leaderboard),
+            child: const Icon(Icons.sports_mma),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+            foregroundColor: Colors.black,
+            label: 'Battle',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => BattlePage()),
+              );
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.workspace_premium),
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
             foregroundColor: Colors.black,
             label: 'Rankings',
