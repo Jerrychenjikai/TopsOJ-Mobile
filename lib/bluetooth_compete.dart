@@ -66,6 +66,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:ble_peripheral/ble_peripheral.dart' as ble_peri;
 
 import 'package:TopsOJ/basic_func.dart';
+import 'package:TopsOJ/login_page.dart';
 
 sealed class BattleState {
   const BattleState();
@@ -103,15 +104,6 @@ class BattleController extends StateNotifier<BattleState> {
   final Guid charUuid = Guid('12345678-1234-5678-1234-567812345678'); // 自定义char UUID
 
   Future<void> startHost() async {
-    // Ensure login (原有代码)
-    final apikey = (await checkLogin())['apikey'];
-    if (apikey == null) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginPage(gotopage: '/battle')),
-        (route) => false,
-      );
-      return;
-    }
 
     // Request permissions (原有)
     if (await Permission.bluetooth.request().isDenied ||
@@ -207,13 +199,6 @@ class BattleController extends StateNotifier<BattleState> {
   }
 
   Future<void> startScan() async {
-    // Ensure login (原有代码)
-    final apikey = (await checkLogin())['apikey'];
-    if (apikey == null) {
-      print("Login expired. Please log in again");
-      return;
-    }
-
     // Request permissions (原有)
     if (await Permission.bluetooth.request().isDenied ||
         await Permission.bluetoothScan.request().isDenied ||
@@ -399,6 +384,8 @@ final battleProvider =
 class BattlePage extends StatelessWidget {
   const BattlePage ({super.key});
 
+  
+
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
@@ -415,6 +402,24 @@ class BattleEntry extends ConsumerStatefulWidget {  // 改成 Stateful
 }
 
 class _BattleEntryState extends ConsumerState<BattleEntry> {
+  @override
+  void initState() {
+    super.initState();
+    _jumpIfNoLogin();
+  }
+
+  Future<void> _jumpIfNoLogin() async {
+    if ((await checkLogin()) == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const LoginPage(gotopage: '/battle'),
+        ),
+      );
+      return;
+    }
+    return;
+  }
+
   @override
   void dispose() {
     // 安全停止（即使没在运行也不会报错）
