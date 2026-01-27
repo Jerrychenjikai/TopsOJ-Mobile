@@ -171,7 +171,7 @@ class BattleController extends StateNotifier<BattleState> {
       });
     } else {
       // iOS: 使用订阅变化作为连接代理
-      ble_peri.BlePeripheral.setCharacteristicSubscriptionChangeCallback((remoteDeviceId, characteristicId, subscribed, centralId) {
+      ble_peri.BlePeripheral.setCharacteristicSubscriptionChangeCallback((remoteDeviceId, characteristicId, subscribed, centralId, [name]) {
         print("connection detected - iOS");
         if (subscribed && characteristicId == charUuid.toString()) {
           print('Central subscribed to char from $remoteDeviceId (iOS)');
