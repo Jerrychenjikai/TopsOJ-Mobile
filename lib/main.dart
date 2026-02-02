@@ -18,6 +18,7 @@ import 'package:TopsOJ/login_page.dart';
 import 'package:TopsOJ/2025_annual_wrap.dart' as wrap2025;
 import 'package:TopsOJ/bluetooth_compete.dart';
 import 'package:TopsOJ/problems_page.dart';
+import 'package:TopsOJ/home_page.dart';
 
 
 void main() async {
@@ -179,7 +180,7 @@ class _MainPageState extends ConsumerState<MainPage> {
   @override
   Widget build(BuildContext context) {
     final List<String> _tabTitles = const [
-      'Home',      // index 0
+      'TopsOJ',       // index 0
       'Problems',   // index 1
     ];
     final currentIndex = ref.watch(currentIndexProvider);
@@ -307,7 +308,7 @@ class _MainPageState extends ConsumerState<MainPage> {
       body: IndexedStack(
         index: currentIndex,
         children: const [
-          RankingPage(),//这里用来占位未来的homepage
+          HomePage(),//这里用来占位未来的homepage
           Problems(),
         ],
       ),
