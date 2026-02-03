@@ -97,7 +97,10 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.blue),
                             ),
                             onPressed: () {
-                              ref.read(mainPageIndexProvider.notifier).state = 1;
+                              ref.read(mainPageProvider.notifier).update((state) => (
+                                index: 1,
+                                search: null,
+                              ));
                             },
                             child: const Text('All Problems', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
@@ -132,15 +135,18 @@ class HomePage extends ConsumerWidget {
                               'AIME I',
                               'AIME II'
                             ].map((cat) => OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    shape: const StadiumBorder(),
-                                    side: BorderSide(color: Colors.grey),
-                                  ),
-                                  onPressed: () {
-                                    //add code to jump
-                                  },
-                                  child: Text(cat),
-                                )).toList(),
+                              style: OutlinedButton.styleFrom(
+                                shape: const StadiumBorder(),
+                                side: BorderSide(color: Colors.grey),
+                              ),
+                              onPressed: () {
+                                ref.read(mainPageProvider.notifier).update((state) => (
+                                  index: 1,
+                                  search: cat,
+                                ));
+                              },
+                              child: Text(cat),
+                            )).toList(),
                           ),
                         ],
                       ),
@@ -157,15 +163,18 @@ class HomePage extends ConsumerWidget {
                               'Cayley',
                               'Fermat'
                             ].map((cat) => OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    shape: const StadiumBorder(),
-                                    side: BorderSide(color: Colors.grey),
-                                  ),
-                                  onPressed: () {
-                                    //add code to jump
-                                  },
-                                  child: Text(cat),
-                                )).toList(),
+                              style: OutlinedButton.styleFrom(
+                                shape: const StadiumBorder(),
+                                side: BorderSide(color: Colors.grey),
+                              ),
+                              onPressed: () {
+                                ref.read(mainPageProvider.notifier).update((state) => (
+                                  index: 1,
+                                  search: cat,
+                                ));
+                              },
+                              child: Text(cat),
+                            )).toList(),
                           ),
                         ],
                       ),

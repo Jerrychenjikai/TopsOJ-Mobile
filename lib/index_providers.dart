@@ -1,3 +1,3 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final mainPageIndexProvider = StateProvider<int>((ref) => 0);
+final mainPageProvider = StateProvider<({int index, String? search})>((ref) => (index: 0, search: null));

@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:TopsOJ/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/problem_page.dart';
 
@@ -101,6 +103,19 @@ class _ProblemsState extends ConsumerState<Problems> {
 
   @override
   Widget build(BuildContext context) {
+    final search = ref.watch(
+      mainPageProvider.select((state) => state.search),
+    );
+
+    if (_problemIdController.text != (search ?? '') && search != null) {
+      _problemIdController.text = search ?? '';
+      _problemIdController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _problemIdController.text.length),
+      );
+      setState((){
+        _getProblems();
+      });
+    }
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -146,6 +161,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                             if (newValue != null) {
                               setState(() {
                                 _solved = newValue.toDouble(); // 保持 _solved 是 double 类型
+                                _page = 1;
                                 _getProblems();
                               });
                             }
@@ -165,6 +181,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                             border: OutlineInputBorder(),
                           ),
                           onSubmitted: (value) {
+                            _page = 1;
                             _getProblems();
                           },
                         ),

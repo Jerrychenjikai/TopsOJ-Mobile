@@ -182,7 +182,9 @@ class _MainPageState extends ConsumerState<MainPage> {
       'TopsOJ',       // index 0
       'Problems',   // index 1
     ];
-    final currentIndex = ref.watch(mainPageIndexProvider);
+    final currentIndex = ref.watch(
+      mainPageProvider.select((state) => state.index),
+    );
 
     return Scaffold(
       drawer: Drawer(
@@ -314,7 +316,10 @@ class _MainPageState extends ConsumerState<MainPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) {
-          ref.read(mainPageIndexProvider.notifier).state = index;
+          ref.read(mainPageProvider.notifier).update((state) => (
+            index: index,
+            search: null,
+          ));
         },
         items: const [
           BottomNavigationBarItem(
