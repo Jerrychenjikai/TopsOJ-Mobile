@@ -46,7 +46,7 @@ class HomePage extends ConsumerWidget {
           Widget buildCardWidget(int index) {
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Padding(
@@ -152,7 +152,7 @@ class HomePage extends ConsumerWidget {
                       ),
                       ExpansionTile(
                         title: const Text('CEMC Categories'),
-                        collapsedShape: const Border(),           // 收起时无边框
+                        collapsedShape: const Border(),
                         shape: const Border(),
                         children: [
                           Wrap(
@@ -180,15 +180,34 @@ class HomePage extends ConsumerWidget {
                       ),
                     ] else if (index == 1) ...[
                       // Buttons for POTD
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          shape: const StadiumBorder(),
-                          side: BorderSide(color: Colors.grey),
-                        ),
-                        onPressed: () {
-                          //add code to jump
-                        },
-                        child: const Text('View POTDs on Discord', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: [
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              shape: const StadiumBorder(),
+                              side: BorderSide(color: Colors.grey),
+                            ),
+                            onPressed: () {
+                              //add code to jump
+                            },
+                            child: const Text('View POTDs on Discord', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              shape: const StadiumBorder(),
+                              side: BorderSide(color: Colors.grey),
+                            ),
+                            onPressed: () {
+                              ref.read(mainPageProvider.notifier).update((state) => (
+                                index: 1,
+                                search: "potd",
+                              ));
+                            },
+                            child: const Text('View earlier POTDs on site', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8.0),
                       Text(
@@ -208,7 +227,7 @@ class HomePage extends ConsumerWidget {
                                 labelStyle: const TextStyle(color: Colors.green),
                               ),
                               const SizedBox(width: 8.0),
-                              const Text('Train your brain with custom drills.'),
+                              Expanded(child: const Text('Train your brain with custom drills.'),),
                             ],
                           ),
                           const SizedBox(height: 8.0),
@@ -220,7 +239,7 @@ class HomePage extends ConsumerWidget {
                                 labelStyle: const TextStyle(color: Colors.green),
                               ),
                               const SizedBox(width: 8.0),
-                              const Text('Race to locate triangle centers.'),
+                              Expanded(child: const Text('Race to locate triangle centers.'),),
                             ],
                           ),
                           const SizedBox(height: 8.0),
@@ -232,7 +251,7 @@ class HomePage extends ConsumerWidget {
                                 labelStyle: const TextStyle(color: Colors.green),
                               ),
                               const SizedBox(width: 8.0),
-                              const Text('Master perfect squares lightning fast.'),
+                              Expanded(child: const Text('Master perfect squares lightning fast.'),),
                             ],
                           ),
                         ],
