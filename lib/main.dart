@@ -19,6 +19,7 @@ import 'package:TopsOJ/2025_annual_wrap.dart' as wrap2025;
 import 'package:TopsOJ/bluetooth_compete.dart';
 import 'package:TopsOJ/problems_page.dart';
 import 'package:TopsOJ/home_page.dart';
+import 'package:TopsOJ/index_providers.dart';
 
 
 void main() async {
@@ -82,8 +83,6 @@ class MainPage extends ConsumerStatefulWidget {
   @override
   _MainPageState createState() => _MainPageState();
 }
-
-final currentIndexProvider = StateProvider<int>((ref) => 0);
 
 class _MainPageState extends ConsumerState<MainPage> {
   String _response = '';
@@ -183,7 +182,7 @@ class _MainPageState extends ConsumerState<MainPage> {
       'TopsOJ',       // index 0
       'Problems',   // index 1
     ];
-    final currentIndex = ref.watch(currentIndexProvider);
+    final currentIndex = ref.watch(mainPageIndexProvider);
 
     return Scaffold(
       drawer: Drawer(
@@ -315,7 +314,7 @@ class _MainPageState extends ConsumerState<MainPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) {
-          ref.read(currentIndexProvider.notifier).state = index;
+          ref.read(mainPageIndexProvider.notifier).state = index;
         },
         items: const [
           BottomNavigationBarItem(

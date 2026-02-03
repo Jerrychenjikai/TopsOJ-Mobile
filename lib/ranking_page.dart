@@ -10,6 +10,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
 
+//when finished: don't forget to activate the "global ranking" button in home page
+
 
 class RankingPage extends StatefulWidget {
     const RankingPage({super.key});
