@@ -53,15 +53,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future<void> _launchURL(String url) async {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot open URL: $url')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,7 +88,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: (){
-                    _launchURL("https://topsoj.com/register");
+                    launchURL(context, "https://topsoj.com/register");
                   },
                   child: const Text('Register'),
                 ),

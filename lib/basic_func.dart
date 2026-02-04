@@ -190,3 +190,12 @@ double max(double a,double b){
   if(a<b) return b;
   return a;
 }
+
+Future<void> launchURL(BuildContext context, String url) async {
+  final uri = Uri.parse(url);
+  if (!await launchUrl(uri)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Cannot open URL: $url')),
+    );
+  }
+}

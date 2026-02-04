@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:TopsOJ/index_providers.dart';
+import 'package:TopsOJ/basic_func.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -190,7 +191,7 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.grey),
                             ),
                             onPressed: () {
-                              //add code to jump
+                              launchURL(context, "https://discord.com/invite/zUdmCWPT3f");
                             },
                             child: const Text('View POTDs on Discord', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
@@ -351,7 +352,7 @@ class HomePage extends ConsumerWidget {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: withSeparators([0, 2].map(buildCardWidget).toList()),
+                              children: withSeparators([0].map(buildCardWidget).toList()),
                             ),
                           ),
                           const SizedBox(width: 16.0),
@@ -365,7 +366,7 @@ class HomePage extends ConsumerWidget {
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: withSeparators([0, 1, 2].map(buildCardWidget).toList()),
+                        children: withSeparators([0, 1].map(buildCardWidget).toList()),
                       ),
               ),
             ),

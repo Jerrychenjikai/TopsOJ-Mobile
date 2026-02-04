@@ -187,7 +187,6 @@ class BattleController extends StateNotifier<BattleState> {
     try {
       await ble_peri.BlePeripheral.startAdvertising(
         services: [serviceUuid.toString()],
-        localName: 'BattlePeer', // 可选，iOS支持
       );
       print('Advertising started');
     } catch (e) {
