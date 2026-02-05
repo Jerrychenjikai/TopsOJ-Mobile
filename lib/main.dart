@@ -41,6 +41,7 @@ class TopsOJ extends StatelessWidget {
         '/battle': (context) => BattlePage(),
       },
       theme: ThemeData(
+        useMaterial3: true, 
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
         ),
@@ -208,19 +209,36 @@ class _MainPageState extends ConsumerState<MainPage> {
                       const SizedBox(height: 5),
                       Text("Streak: ${_userinfo['streak']}"),
                       const SizedBox(height: 15),
-                      Text(
-                        "Weekly Leaderboard",
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+
+                      Card(
+                        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 8),
+                            Text(
+                              "Weekly Leaderboard",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                            ),
+                            ..._weeklylb_render,
+                          ],
+                        ),
                       ),
-                      ..._weeklylb_render,
                       const SizedBox(height: 15),
-                      Text(
-                        "Problems you might find challenging",
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      Card(
+                        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 8),
+                            Text(
+                              "Problems you might find challenging",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                            ),
+                            ..._precommend_render,
+                          ],
+                        ),
                       ),
-                      ..._precommend_render,
                     ],
                   ),
                 ),

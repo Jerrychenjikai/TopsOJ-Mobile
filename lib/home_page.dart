@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:TopsOJ/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
+import "package:TopsOJ/perfect_square.dart";
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -247,7 +249,7 @@ class HomePage extends ConsumerWidget {
                           Row(
                             children: [
                               Chip(
-                                label: const Text('Be Perfect'),
+                                label: const Text('Be Perfect²'),
                                 backgroundColor: Colors.green.withOpacity(0.1),
                                 labelStyle: const TextStyle(color: Colors.green),
                               ),
@@ -289,9 +291,11 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.green),
                             ),
                             onPressed: () {
-                              //add code to jump
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => BePerfectWidget()),
+                              );
                             },
-                            child: const Text('Be Perfect'),
+                            child: const Text('Be Perfect²'),
                           ),
                         ],
                       ),
@@ -359,14 +363,14 @@ class HomePage extends ConsumerWidget {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: withSeparators([1].map(buildCardWidget).toList()),
+                              children: withSeparators([1,2].map(buildCardWidget).toList()),
                             ),
                           ),
                         ],
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: withSeparators([0, 1].map(buildCardWidget).toList()),
+                        children: withSeparators([0, 1, 2].map(buildCardWidget).toList()),
                       ),
               ),
             ),

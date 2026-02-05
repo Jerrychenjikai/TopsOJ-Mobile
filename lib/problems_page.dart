@@ -126,138 +126,148 @@ class _ProblemsState extends ConsumerState<Problems> {
             final isLandscape = maxWidth > maxHeight;
             const maxSplit = 0.5;
             Widget buildFilter() {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 8),
-                  Row(
+              return Card(
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Text("Filter by solved: "),
-                      Expanded(
-                        child: DropdownButton<int>(
-                          value: _solved.toInt(), // 当前选中值 (0,1,2)
-                          isExpanded: true, // 让下拉菜单占满宽度
-                          elevation: 4,
-                          borderRadius: BorderRadius.circular(8),
-                          underline: Container(
-                            height: 2,
-                            color: Theme.of(context).primaryColor,
+                      Row(
+                        children: [
+                          const Text("Filter by solved: "),
+                          Expanded(
+                            child: DropdownButton<int>(
+                              value: _solved.toInt(), // 当前选中值 (0,1,2)
+                              isExpanded: true, // 让下拉菜单占满宽度
+                              elevation: 4,
+                              borderRadius: BorderRadius.circular(8),
+                              underline: Container(
+                                height: 2,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              items: const [
+                                DropdownMenuItem<int>(
+                                  value: 0,
+                                  child: Text('Incorrect'),
+                                ),
+                                DropdownMenuItem<int>(
+                                  value: 1,
+                                  child: Text('All'),
+                                ),
+                                DropdownMenuItem<int>(
+                                  value: 2,
+                                  child: Text('Correct'),
+                                ),
+                              ],
+                              onChanged: (int? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _solved = newValue.toDouble(); // 保持 _solved 是 double 类型
+                                    _page = 1;
+                                    _getProblems();
+                                  });
+                                }
+                              },
+                            ),
                           ),
-                          items: const [
-                            DropdownMenuItem<int>(
-                              value: 0,
-                              child: Text('Incorrect'),
-                            ),
-                            DropdownMenuItem<int>(
-                              value: 1,
-                              child: Text('All'),
-                            ),
-                            DropdownMenuItem<int>(
-                              value: 2,
-                              child: Text('Correct'),
-                            ),
-                          ],
-                          onChanged: (int? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _solved = newValue.toDouble(); // 保持 _solved 是 double 类型
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _problemIdController,
+                              decoration: const InputDecoration(
+                                labelText: 'Enter Problem Name/ID',
+                                border: OutlineInputBorder(),
+                              ),
+                              onSubmitted: (value) {
                                 _page = 1;
                                 _getProblems();
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _problemIdController,
-                          decoration: const InputDecoration(
-                            labelText: 'Enter Problem Name/ID',
-                            border: OutlineInputBorder(),
+                              },
+                            ),
                           ),
-                          onSubmitted: (value) {
-                            _page = 1;
-                            _getProblems();
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          _page = 1;
-                          _getProblems();
-                        },
-                        child: const Icon(Icons.search),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              _page = 1;
+                              _getProblems();
+                            },
+                            child: const Icon(Icons.search),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               );
             }
 
             Widget buildList() {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              return Card(
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      if (_page > 1)
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _page = _page - 1;
-                              _getProblems();
-                            });
-                          },
-                          child: const Icon(Icons.arrow_back),
-                        )
-                      else
-                        const SizedBox(width: 60),
-                      Text(
-                        'Page $_page/${(_problems_cnt / 10).ceil()}',
-                        style: const TextStyle(fontSize: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (_page > 1)
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _page = _page - 1;
+                                  _getProblems();
+                                });
+                              },
+                              child: const Icon(Icons.arrow_back),
+                            )
+                          else
+                            const SizedBox(width: 60),
+                          Text(
+                            'Page $_page/${(_problems_cnt / 10).ceil()}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          if (_page * 10 < _problems_cnt)
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _page = _page + 1;
+                                  _getProblems();
+                                });
+                              },
+                              child: const Icon(Icons.arrow_forward),
+                            )
+                          else
+                            const SizedBox(width: 60),
+                        ],
                       ),
-                      if (_page * 10 < _problems_cnt)
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _page = _page + 1;
-                              _getProblems();
-                            });
-                          },
-                          child: const Icon(Icons.arrow_forward),
-                        )
-                      else
-                        const SizedBox(width: 60),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: _render(),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: _render(),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               );
             }
 
             if (isLandscape) {
               // 横向布局：左侧题目列表，右侧过滤器
               return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 左侧：题目列表（占剩余空间）
                   Expanded(
                     child: buildList(),
                   ),
-                  const SizedBox(width: 10),
                   // 拖拽把手（垂直条）
                   GestureDetector(
                     onHorizontalDragUpdate: (details) {
@@ -273,7 +283,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                     },
                     child: Container(
                       width: 20,
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      color: Theme.of(context).colorScheme.surface,
                       child: const Center(
                         child: RotatedBox(
                           quarterTurns: 1, // 旋转把手图标，使其适合横向拖拽
@@ -284,15 +294,10 @@ class _ProblemsState extends ConsumerState<Problems> {
                   ),
                   // 右侧：过滤器（宽度根据比例）
                   if (_splitRatio > 0)
-                    ...[
-                      const SizedBox(width: 10),
-                      SizedBox(
-                        width: maxWidth * _splitRatio,
-                        child: SingleChildScrollView(
-                          child: buildFilter(),
-                        ),
-                      ),
-                    ],
+                    SizedBox(
+                      width: maxWidth * _splitRatio,
+                      child: buildFilter(),
+                    ),
                 ],
               );
             } else {
@@ -302,9 +307,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                   // 上部：过滤器
                   SizedBox(
                     height: maxHeight * _splitRatio,
-                    child: SingleChildScrollView(
-                      child: buildFilter(),
-                    ),
+                    child: buildFilter(),
                   ),
                   // 拖拽把手（水平条）
                   GestureDetector(
@@ -321,7 +324,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                     },
                     child: Container(
                       height: 20,
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      color: Theme.of(context).colorScheme.surface,
                       child: const Center(
                         child: Icon(Icons.drag_handle),
                       ),
