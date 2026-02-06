@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'dart:io';
+import "package:TopsOJ/login_page.dart";
 
 
 // 题目页面
@@ -91,9 +92,18 @@ class _ProblemPageState extends State<ProblemPage> {
 
   void _submit() async {
     final answer = _controller.text.trim();
-    _controller.clear();
+    if(answer.isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Answer could not be empty")),
+      );
+      return;
+    }
+    if(((await checkLogin()) == null) && !(await is_cached(widget.problemId))){
+      await popLogin(context);
+    }
     var response = await submitProblem(widget.problemId, answer);
     if (response['statusCode'] == 200) {
+      _controller.clear();
       final passed = response['data']['check'] as bool;
       if(passed){
         await record(widget.problemId, 'correct', '${true}');

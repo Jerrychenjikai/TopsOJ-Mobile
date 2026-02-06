@@ -96,7 +96,7 @@ Future<Map<String, dynamic>> submitProblem(String problemId, String answer) asyn
     String? apiKey = prefs.getString('apiKey');
 
     if (apiKey == null || apiKey.isEmpty) {
-        return {'statusCode': -1, 'data': 'API Key Not Found. Log In Again'};
+        return {'statusCode': -1, 'data': 'Need to log in to submit'};
     }
 
     var headers;

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:TopsOJ/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/problem_page.dart';
+import 'package:TopsOJ/login_page.dart';
 
 class Problems extends ConsumerStatefulWidget {
   const Problems({super.key});
@@ -32,16 +33,22 @@ class _ProblemsState extends ConsumerState<Problems> {
   ]; //changed by the _getProblems function
 
   Future<void> _getProblems() async {
+    List<String> solvelist = ['false', 'none', 'true'];
+    if(solvelist[_solved.toInt()] != "none" && (await checkLogin())==null){
+      final success = await popLogin(context);
+      if (success != true) {
+        setState((){_solved = 1;});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('You need to log in to filter by solved')),
+        );
+        return;
+      }
+    }
+
     var url = Uri.parse('https://topsoj.com/api/problems');
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? apiKey = prefs.getString('apiKey');
-    List<String> solvelist = ['false', 'none', 'true'];
-    if (apiKey == null || apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("API Key Not Found. Log In Again")),
-      );
-      return;
-    }
+
     var headers = {'Authorization': 'Bearer $apiKey'};
     var response = await http.post(url, headers: headers, body: {
       'page': '${_page}',

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:TopsOJ/problem_page.dart';
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
+import 'package:TopsOJ/login_page.dart';
 
 //This is the page for list of cached problems
 class CachedPage extends StatefulWidget {
@@ -27,6 +28,15 @@ class _CachedPageState extends State<CachedPage> {
   }
 
   Future<void> _submitAll() async { //submit the first 5 wrong problems since there is a rate limit
+    if((await checkLogin()) == null){
+      final success = await popLogin(context);
+      if (success != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Need to login and have internet access to submit')),
+        );
+        return;
+      }
+    }
     Map<String, Map<String, String>> problems = await get_cached();
     Map<String, dynamic> response;
     int cnt=0;

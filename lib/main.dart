@@ -71,27 +71,22 @@ class _MainPageState extends ConsumerState<MainPage> {
   }
 
   Future<void> _makeRequest() async {
-    // this renders the content in the drawer
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? apiKey = prefs.getString('apiKey');
-    int statusCode = 0;
-    Map<String, dynamic> result = {};
-    if (apiKey != null && !apiKey.isEmpty) {
-      result = await checkApiKeyValid(apiKey);
-      statusCode = result['statusCode'];
-    }
-
-    if(apiKey == null || apiKey.isEmpty || (statusCode != 429 && statusCode != 200)){
+    if((await checkLogin()) == null){
       final success = await popLogin(context);
       if (success != true) {
         setState(() {_response = "Not Logged In";});
+        _precommend_render = [];
+        _userinfo = {};
+        _weeklylb_render = [];
         return;
       }
-      else{
-        result = await checkApiKeyValid(prefs.getString('apiKey') ?? "");
-        statusCode = result['statusCode'];
-      }
     }
+
+    // this renders the content in the drawer
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String apiKey = prefs.getString('apiKey') ?? "";
+    final result = await checkApiKeyValid(apiKey);
+    final statusCode = result['statusCode'];
 
     final String? username = result['username'];
     List<dynamic> weeklylb = await fetchWeeklylb();
