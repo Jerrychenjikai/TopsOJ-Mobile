@@ -10,10 +10,16 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/cached_problem_page.dart';
 
-// 登录页
+Future<bool?> popLogin(BuildContext context) async {
+  return await showDialog<bool>(
+    context: context,
+    barrierDismissible: true,        // 允许点击外部关闭
+    builder: (context) => LoginPage(),
+  );
+}
+
 class LoginPage extends StatefulWidget {
-  final String gotopage;
-  const LoginPage({super.key, required this.gotopage});
+  const LoginPage({super.key});   // 去掉 gotopage 参数
 
   @override
   _LoginPageState createState() => _LoginPageState();
@@ -47,65 +53,72 @@ class _LoginPageState extends State<LoginPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('apiKey', apiKey ?? "");
 
-    Navigator.pushReplacementNamed(
-      context,
-      widget.gotopage,
-    );
+    // 登录成功 → 关闭弹窗并返回 true
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('LogIn')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            TextField(
-              controller: _username,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Username',
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: SingleChildScrollView(        // 防止键盘弹出时溢出
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'LogIn',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _password,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Password',
+              const SizedBox(height: 20),
+              TextField(
+                controller: _username,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Username',
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children:[
-                ElevatedButton(
-                  onPressed: _login,
-                  child: const Text('LogIn'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _password,
+                obscureText: true,                     // 建议加上密码隐藏
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Password',
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: (){
-                    launchURL(context, "https://topsoj.com/register");
-                  },
-                  child: const Text('Register'),
-                ),
-              ]
-            ),
-            const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: (){
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => CachedPage(),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _login,
+                      child: const Text('LogIn'),
+                    ),
                   ),
-                );
-              },
-              child: const Text('Check all cached problem'),
-            ),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        launchURL(context, "https://topsoj.com/register");
+                      },
+                      child: const Text('Register'),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),  // 取消
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -409,14 +409,11 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
 
   Future<void> _jumpIfNoLogin() async {
     if ((await checkLogin()) == null) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const LoginPage(gotopage: '/battle'),
-        ),
-      );
-      return;
+      final success = await popLogin(context);
+      if (success != true) {
+        Navigator.pop(context);
+      }
     }
-    return;
   }
 
   @override

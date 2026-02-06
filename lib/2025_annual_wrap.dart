@@ -174,13 +174,13 @@ class _AnnualReportPageState extends State<AnnualReportPage> with TickerProvider
   }
 
   Future<Map<String, dynamic>?> fetchData() async {
-    final s = await checkLogin();
+    var s = await checkLogin();
     if(s == null){
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const LoginPage(gotopage: '/battle'),
-        ),
-      );
+      final success = await popLogin(context);
+      if (success != true) {
+        return null;
+      }
+      s = await checkLogin();
     }
     String apiKey = s['apikey'];
     username = s['username'];

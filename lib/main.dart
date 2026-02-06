@@ -46,33 +46,7 @@ class TopsOJ extends StatelessWidget {
           seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
         ),
       ),
-      home: const RootPage(),
-    );
-  }
-}
-
-// 初始页：根据登录状态跳转
-class RootPage extends StatelessWidget {
-  const RootPage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: checkLogin().then((value) {
-        if (value == null) return false;
-        return value['apikey'] != null;
-      }),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snapshot.data!) {
-          return const MainPage();
-        } else {
-          return const LoginPage(gotopage: '/home');
-        }
-      },
+      home: const MainPage(),
     );
   }
 }
@@ -94,21 +68,31 @@ class _MainPageState extends ConsumerState<MainPage> {
   @override
   void initState() {
     super.initState();
-    _makeRequest();
   }
 
   Future<void> _makeRequest() async {
     // this renders the content in the drawer
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? apiKey = prefs.getString('apiKey');
-    if (apiKey == null || apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API Key Not Found, Log In Again')),
-      );
-      return;
+    int statusCode = 0;
+    Map<String, dynamic> result = {};
+    if (apiKey != null && !apiKey.isEmpty) {
+      result = await checkApiKeyValid(apiKey);
+      statusCode = result['statusCode'];
     }
-    final result = await checkApiKeyValid(apiKey);
-    final int statusCode = result['statusCode'];
+
+    if(apiKey == null || apiKey.isEmpty || (statusCode != 429 && statusCode != 200)){
+      final success = await popLogin(context);
+      if (success != true) {
+        setState(() {_response = "Not Logged In";});
+        return;
+      }
+      else{
+        result = await checkApiKeyValid(prefs.getString('apiKey') ?? "");
+        statusCode = result['statusCode'];
+      }
+    }
+
     final String? username = result['username'];
     List<dynamic> weeklylb = await fetchWeeklylb();
     List<dynamic> precommend = await fetchRecommendedProblems();
@@ -155,9 +139,8 @@ class _MainPageState extends ConsumerState<MainPage> {
   Future<void> _logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('apiKey');
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginPage(gotopage: '/home')),
-      (route) => false,
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Successfully logged out')),
     );
   }
 
