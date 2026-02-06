@@ -132,11 +132,14 @@ class _MainPageState extends ConsumerState<MainPage> {
   }
 
   Future<void> _logout() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('apiKey');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Successfully logged out')),
-    );
+    if((await checkLogin()) != null){
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove('apiKey');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Successfully logged out')),
+      );
+    }
+    else popLogin(context);
   }
 
   void _gotoProblem([String? id]) {
@@ -234,7 +237,7 @@ class _MainPageState extends ConsumerState<MainPage> {
         title: Text(_tabTitles[currentIndex]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.person_2_outlined),
             onPressed: _logout,
           ),
         ],
