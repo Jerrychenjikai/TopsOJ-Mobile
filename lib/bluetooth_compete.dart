@@ -286,43 +286,33 @@ class BattleController extends StateNotifier<BattleState> {
       return;
     }
 
-    if (isHost) {
-      // Connect as Host（但host是peripheral，通常已连接；这里如果需要重连）
+    if (!isHost) {
+      // Central mode (client) - we've already awaited connect() in startScan,
+      // so check current state instead of listening for changes
       try {
-        final currentState = await device!.connectionState.last;
-
-        if (currentState != BluetoothConnectionState.connected) {
-          try {
-            await device!.connect(
-              license: License.free,
-            );
-          } catch (e) {
-            print('Connection failed: $e');
-            reset();
-            return;
-          }
+        final currentState = await device.connectionState.first;  // Get current state (waits if needed)
+        print('Current connection state: $currentState');
+        if (currentState == BluetoothConnectionState.connected) {
+          print('Central mode: already connected, proceeding to onReady');
+          onReady();
+        } else {
+          print('Unexpected state: $currentState - retrying connect');
+          await device.connect(license: License.free);  // Retry if needed
+          onReady();
         }
-        peerDevice = device;
-        List<BluetoothService> services = await device.discoverServices();
-        
-        // After connection, move to Connecting state or directly to onReady if successful
-        state = Connecting();
-        // Then call onReady() after handshake, but for now simulate
-        onReady();
       } catch (e) {
-        print('Connection failed: $e');
+        print('Connection state check failed: $e');
         reset();
       }
-    } else {
-      // As Client, the connection will be incoming
-      // But since we are central, we already connected in startScan
-      // Listen for connections (可选，监控状态)
+
+      // Still set up listener for *future* changes (e.g., disconnects)
       device.connectionState.listen((BluetoothConnectionState bluetoothState) {
+        print('Connection state changed: $bluetoothState');
         if (bluetoothState == BluetoothConnectionState.connected) {
-          peerDevice = device;
-          // Discover services similarly
-          state = Connecting();
-          onReady();
+          // Handle reconnects if needed
+        } else if (bluetoothState == BluetoothConnectionState.disconnected) {
+          print('Disconnected');
+          reset();
         }
       });
     }
