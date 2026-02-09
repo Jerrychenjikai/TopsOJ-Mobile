@@ -147,8 +147,8 @@ class BattleController extends StateNotifier<BattleState> {
               ble_peri.CharacteristicProperties.notify.index,
             ],
             permissions: [
-              ble_peri.AttributePermissions.readable.index,
               ble_peri.AttributePermissions.writeable.index,
+              ble_peri.AttributePermissions.readable.index,
             ],
             // 注意：**不要** 在这里传入 value（initial cached value），
             // 否则 iOS CoreBluetooth 会报：Characteristics with cached values must be read-only
@@ -183,10 +183,37 @@ class BattleController extends StateNotifier<BattleState> {
       });
     }
 
+    // this is the function to cope with write requests
+    ble_peri.BlePeripheral.setWriteRequestCallback((String remoteDeviceId, String characteristicUuid, int offset, Uint8List? value) {
+      print('📤 Write request: value: $value');
+      // 处理写入逻辑...
+      return ble_peri.WriteRequestResult(
+        status: 0,   // 0 = 成功
+      );
+    });
+
+    ble_peri.BlePeripheral.setReadRequestCallback(
+      (String remoteDeviceId, String characteristicUuid, int offset, Uint8List? value) {
+        print('Read request received:');
+        print('  from: $remoteDeviceId');
+        print('  char: $characteristicUuid');
+        print('  offset: $offset');
+        print('  value (should be null for read): $value');
+
+        // 返回成功响应（即使是空值也行，让 iOS 的自动 read 通过）
+        return ble_peri.ReadRequestResult(
+          value: Uint8List(0),   // 空字节数组
+          offset: offset,        // 通常保持原 offset
+          status: 0,             // 0 = GATT_SUCCESS
+        );
+      },
+    );
+
     // Start advertising
     try {
       await ble_peri.BlePeripheral.startAdvertising(
         services: [serviceUuid.toString()],
+        localName: "TopsOJBG",
       );
       print('Advertising started');
     } catch (e) {
@@ -229,19 +256,41 @@ class BattleController extends StateNotifier<BattleState> {
     // Start scanning
     await FlutterBluePlus.startScan(
       timeout: Duration(seconds: 30),
+      androidScanMode: AndroidScanMode.lowLatency,
       androidUsesFineLocation: true,
     );
 
     // Listen to scan results
     FlutterBluePlus.scanResults.listen((results) async {
       for (ScanResult r in results) {
-        if (r.advertisementData.serviceUuids.contains(serviceUuid)) {
+        final adv = r.advertisementData;
+        print('''
+          === Device Found ===
+          Name: ${r.device.platformName}
+          LocalName: ${adv.localName}
+          Services: ${adv.serviceUuids}
+          Manufacturer Data: ${adv.manufacturerData}
+          TxPower: ${adv.txPowerLevel}
+          ''');
+        
+        if (adv.serviceUuids.contains(serviceUuid) ||
+            (adv.localName?.contains("TopsOJBG") ?? false)){
+          
+          await FlutterBluePlus.stopScan();
           print("found someone: $r");
 
           // 直接连接（移除交换逻辑）
           peerDevice = r.device;
+          print(1);
           try {
-            await peerDevice!.connect(license: License.free);
+            print(2);
+            await peerDevice!.connect(
+              license: License.free,
+              timeout: const Duration(seconds: 10),
+              ).timeout(
+                const Duration(seconds: 12),
+                onTimeout: () => throw TimeoutException('Connect timeout after 12s'),
+              );
             print('Connected as central');
 
             // Discover services and char（保留，如果后续需要）
