@@ -36,9 +36,6 @@ class TopsOJ extends StatelessWidget {
       title: "Tops Online Judge",
       routes: {
         '/home': (context) => MainPage(),
-        '/ranking': (context) => RankingPage(),
-        '/2025wrap': (context) => wrap2025.AnnualReportPage(),
-        '/battle': (context) => BattlePage(),
       },
       theme: ThemeData(
         useMaterial3: true, 
@@ -163,6 +160,7 @@ class _MainPageState extends ConsumerState<MainPage> {
     final List<String> _tabTitles = const [
       'TopsOJ',       // index 0
       'Problems',   // index 1
+      'Rankings',
     ];
     final currentIndex = ref.watch(
       mainPageProvider.select((state) => state.index),
@@ -282,17 +280,6 @@ class _MainPageState extends ConsumerState<MainPage> {
             },
           ),
           SpeedDialChild(
-            child: const Icon(Icons.workspace_premium),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-            foregroundColor: Colors.black,
-            label: 'Rankings',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => RankingPage()),
-              );
-            },
-          ),
-          SpeedDialChild(
             child: const Icon(Icons.save),
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
             foregroundColor: Colors.black,
@@ -308,8 +295,9 @@ class _MainPageState extends ConsumerState<MainPage> {
       body: IndexedStack(
         index: currentIndex,
         children: const [
-          HomePage(),//这里用来占位未来的homepage
+          HomePage(),
           Problems(),
+          RankingPage(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -318,6 +306,7 @@ class _MainPageState extends ConsumerState<MainPage> {
           ref.read(mainPageProvider.notifier).update((state) => (
             index: index,
             search: null,
+            ranking_category: null,
           ));
         },
         items: const [
@@ -328,6 +317,10 @@ class _MainPageState extends ConsumerState<MainPage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.filter),
             label: 'Problems',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.leaderboard),
+            label: 'Rankings',
           ),
         ],
       ),

@@ -31,6 +31,7 @@ class _ProblemsState extends ConsumerState<Problems> {
     {'id': "03_amc12A_p01", 'name': '2003 AMC 12A problem 1'},
     {'id': "04_amc12A_p02", 'name': '2004 AMC 12A problem 2'},
   ]; //changed by the _getProblems function
+  
 
   Future<void> _getProblems() async {
     List<String> solvelist = ['false', 'none', 'true'];
@@ -110,19 +111,26 @@ class _ProblemsState extends ConsumerState<Problems> {
 
   @override
   Widget build(BuildContext context) {
-    final search = ref.watch(
+    ref.listen<String?>(
       mainPageProvider.select((state) => state.search),
-    );
+      (prev, next) {
+        if (next == null) return;
 
-    if (_problemIdController.text != (search ?? '') && search != null) {
-      _problemIdController.text = search ?? '';
-      _problemIdController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _problemIdController.text.length),
-      );
-      setState((){
-        _getProblems();
-      });
-    }
+        if (_problemIdController.text != next) {
+          _problemIdController.text = next;
+          _problemIdController.selection = TextSelection.fromPosition(
+            TextPosition(offset: next.length),
+          );
+
+          _getProblems();
+        }
+
+        // 消费 search（副作用里做）
+        ref.read(mainPageProvider.notifier).update(
+          (state) => state.copyWith(search: null),
+        );
+      },
+    );
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),

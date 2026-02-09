@@ -6,28 +6,54 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:TopsOJ/basic_func.dart';
-import 'package:TopsOJ/login_page.dart';
+import 'package:TopsOJ/index_providers.dart';
 
 //when finished: don't forget to activate the "global ranking" button in home page
 
 
-class RankingPage extends StatefulWidget {
+class RankingPage extends ConsumerStatefulWidget {
     const RankingPage({super.key});
 
     @override
     _RankingState createState() => _RankingState();
 }
 
-class _RankingState extends State<RankingPage> {
-    Future<void> _fetch_data() async {
+class _RankingState extends ConsumerState<RankingPage> {
+    String _ranking_category = "total points";
+    //could also be: rating, triangulate, mental math
+
+    Future<void> _fetch_ranking_data() async {
+        print(_ranking_category);
+        //has to include setstate here
         return;
     }
 
     Widget build(BuildContext context){ 
+        ref.listen<String?>(
+          mainPageProvider.select((state) => state.ranking_category),
+          (prev, next) {
+            if (next == null) return;
+
+            if (_ranking_category != next) {
+              _ranking_category = next;
+              print(next);
+
+              setState((){
+                _fetch_ranking_data();
+              });
+            }
+
+            // 消费 search（副作用里做）
+            ref.read(mainPageProvider.notifier).update(
+              (state) => state.copyWith(ranking_category: null),
+            );
+          },
+        );
         return FutureBuilder(
-            future: _fetch_data(),
+            future: _fetch_ranking_data(),
             builder: (context, snapshot){
                 if (snapshot.connectionState != ConnectionState.done){
                     return Scaffold(
@@ -35,9 +61,8 @@ class _RankingState extends State<RankingPage> {
                         body: const Center(child: CircularProgressIndicator()),
                     );
                 }
-                return Scaffold(
-                    appBar: AppBar(title: Text("Ranking Page (To be redesigned)")),
-                    body: Padding(
+                return SafeArea(
+                    child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                             children: [

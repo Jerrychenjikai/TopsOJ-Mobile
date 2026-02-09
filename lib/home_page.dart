@@ -100,23 +100,25 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.blue),
                             ),
                             onPressed: () {
-                              ref.read(mainPageProvider.notifier).update((state) => (
+                              ref.read(mainPageProvider.notifier).update((state) => state.copyWith(
                                 index: 1,
-                                search: null,
                               ));
                             },
                             child: const Text('All Problems', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
-                          /*OutlinedButton(
+                          OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               shape: const StadiumBorder(),
                               side: BorderSide(color: Colors.grey),
                             ),
                             onPressed: () {
-                              //add code to jump
+                              ref.read(mainPageProvider.notifier).update((state) => state.copyWith(
+                                index: 2,
+                                ranking_category: "total points",
+                              ));
                             },
                             child: const Text('Global Rankings', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),*/
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16.0),
@@ -143,7 +145,7 @@ class HomePage extends ConsumerWidget {
                                 side: BorderSide(color: Colors.grey),
                               ),
                               onPressed: () {
-                                ref.read(mainPageProvider.notifier).update((state) => (
+                                ref.read(mainPageProvider.notifier).update((state) => state.copyWith(
                                   index: 1,
                                   search: cat,
                                 ));
@@ -171,7 +173,7 @@ class HomePage extends ConsumerWidget {
                                 side: BorderSide(color: Colors.grey),
                               ),
                               onPressed: () {
-                                ref.read(mainPageProvider.notifier).update((state) => (
+                                ref.read(mainPageProvider.notifier).update((state) => state.copyWith(
                                   index: 1,
                                   search: cat,
                                 ));
@@ -203,7 +205,7 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.grey),
                             ),
                             onPressed: () {
-                              ref.read(mainPageProvider.notifier).update((state) => (
+                              ref.read(mainPageProvider.notifier).update((state) => state.copyWith(
                                 index: 1,
                                 search: "potd",
                               ));
@@ -311,7 +313,10 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.grey),
                             ),
                             onPressed: () {
-                              //add code to jump
+                              ref.read(mainPageProvider.notifier).update((state) => state.copyWith(
+                                index: 2,
+                                ranking_category: "triangulate",
+                              ));
                             },
                             child: const Text('Triangulate Rankings'),
                           ),
@@ -321,7 +326,10 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.grey),
                             ),
                             onPressed: () {
-                              //add code to jump
+                              ref.read(mainPageProvider.notifier).update((state) => state.copyWith(
+                                index: 2,
+                                ranking_category: "mental math",
+                              ));
                             },
                             child: const Text('Mental Math Rankings'),
                           ),
