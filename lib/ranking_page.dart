@@ -11,9 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/index_providers.dart';
 
-//when finished: don't forget to activate the "global ranking" button in home page
-
-
 class RankingPage extends ConsumerStatefulWidget {
     const RankingPage({super.key});
 
@@ -23,10 +20,10 @@ class RankingPage extends ConsumerStatefulWidget {
 
 class _RankingState extends ConsumerState<RankingPage> {
     String _ranking_category = "total points";
+    final List<String> categories = ['total points','rating','triangulate','mental math'];
     //could also be: rating, triangulate, mental math
 
     Future<void> _fetch_ranking_data() async {
-        print(_ranking_category);
         //has to include setstate here
         return;
     }
@@ -46,7 +43,6 @@ class _RankingState extends ConsumerState<RankingPage> {
               });
             }
 
-            // 消费 search（副作用里做）
             ref.read(mainPageProvider.notifier).update(
               (state) => state.copyWith(ranking_category: null),
             );
@@ -66,6 +62,26 @@ class _RankingState extends ConsumerState<RankingPage> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                             children: [
+                                DropdownButton<String>(
+                                  value: _ranking_category,
+                                  hint: Text('Please choose ranking category'),
+                                  underline: Container(
+                                    height: 2,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                  items: categories.map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value),
+                                    );
+                                  }).toList(),
+                                  onChanged: (String? newValue) {
+                                    setState(() {
+                                      _ranking_category = newValue ?? "total points";
+                                      _fetch_ranking_data();
+                                    });
+                                  },
+                                ),
                                 Expanded(
                                     child: ListView(
                                         children: [

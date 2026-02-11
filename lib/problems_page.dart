@@ -24,7 +24,7 @@ class _ProblemsState extends ConsumerState<Problems> {
   final TextEditingController _problemIdController = TextEditingController();
   int _page = 1;
   int _problems_cnt = 3;
-  double _solved = 1; //0 - only fetch unsolved problems, 1 - no restrictions, 2 - only solved problems
+  int _solved = 1; //0 - only fetch unsolved problems, 1 - no restrictions, 2 - only solved problems
 
   List<dynamic> _problem_ids = [
     {'id': "02_amc10A_p01", 'name': '2002 AMC 10A problem 1'},
@@ -35,7 +35,7 @@ class _ProblemsState extends ConsumerState<Problems> {
 
   Future<void> _getProblems() async {
     List<String> solvelist = ['false', 'none', 'true'];
-    if(solvelist[_solved.toInt()] != "none" && (await checkLogin())==null){
+    if(solvelist[_solved] != "none" && (await checkLogin())==null){
       final success = await popLogin(context);
       if (success != true) {
         setState((){_solved = 1;});
@@ -54,7 +54,7 @@ class _ProblemsState extends ConsumerState<Problems> {
     var response = await http.post(url, headers: headers, body: {
       'page': '${_page}',
       'title': _problemIdController.text.trim(),
-      'solved': solvelist[_solved.toInt()],
+      'solved': solvelist[_solved],
     });
     final jsonData = jsonDecode(response.body);
     if (response.statusCode == 200) {
@@ -125,7 +125,6 @@ class _ProblemsState extends ConsumerState<Problems> {
           _getProblems();
         }
 
-        // 消费 search（副作用里做）
         ref.read(mainPageProvider.notifier).update(
           (state) => state.copyWith(search: null),
         );
@@ -153,7 +152,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                           const Text("Filter by solved: "),
                           Expanded(
                             child: DropdownButton<int>(
-                              value: _solved.toInt(), // 当前选中值 (0,1,2)
+                              value: _solved, // 当前选中值 (0,1,2)
                               isExpanded: true, // 让下拉菜单占满宽度
                               elevation: 4,
                               borderRadius: BorderRadius.circular(8),
@@ -178,7 +177,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                               onChanged: (int? newValue) {
                                 if (newValue != null) {
                                   setState(() {
-                                    _solved = newValue.toDouble(); // 保持 _solved 是 double 类型
+                                    _solved = newValue;
                                     _page = 1;
                                     _getProblems();
                                   });
