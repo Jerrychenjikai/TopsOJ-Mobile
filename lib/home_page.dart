@@ -51,6 +51,14 @@ class HomePage extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),     // 很淡的黑色 / 或用 shadowColor
+                    blurRadius: 8,                              // 模糊程度
+                    offset: const Offset(0, 2),                 // 向下偏移2像素（最自然）
+                    spreadRadius: 0.5,                          // 轻微向外扩张
+                  ),
+                ],
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0), // Inner padding to match card-body p-4 (~16px)
