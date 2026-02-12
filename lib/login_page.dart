@@ -13,8 +13,13 @@ import 'package:TopsOJ/cached_problem_page.dart';
 Future<bool?> popLogin(BuildContext context) async {
   return await showDialog<bool>(
     context: context,
-    barrierDismissible: true,        // 允许点击外部关闭
-    builder: (context) => LoginPage(),
+    barrierDismissible: true,
+    builder: (dialogContext) => ScaffoldMessenger(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: LoginPage(),
+      ),
+    ),
   );
 }
 
@@ -85,7 +90,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 16),
               TextField(
                 controller: _password,
-                obscureText: true,                     // 建议加上密码隐藏
+                obscureText: true,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   labelText: 'Password',

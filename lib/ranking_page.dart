@@ -21,11 +21,26 @@ class RankingPage extends ConsumerStatefulWidget {
 class _RankingState extends ConsumerState<RankingPage> {
     String _ranking_category = "total points";
     final List<String> categories = ['total points','rating','triangulate','mental math'];
-    //could also be: rating, triangulate, mental math
+    
+    List<Widget> _leaderboard_render = [];
 
     Future<void> _fetch_ranking_data() async {
-        //has to include setstate here
-        return;
+      _leaderboard_render = [];
+
+      final leaderboard = [1,2,3,4];
+      for (dynamic lb in leaderboard) {
+        _leaderboard_render.add(
+          ListTile(
+            title: Text("name"),
+            trailing: Text(
+              "${_ranking_category} point",
+              style: const TextStyle(fontSize: 15),
+            ),
+            leading: Text(lb.toString()),
+          ),
+        );
+      }
+      return;
     }
 
     Widget build(BuildContext context){ 
@@ -83,13 +98,11 @@ class _RankingState extends ConsumerState<RankingPage> {
                                   },
                                 ),
                                 Expanded(
-                                    child: ListView(
-                                        children: [
-                                            Text("User 1"),
-                                            Text("User 2"),
-                                            Text("User 3"),
-                                        ],
-                                    ),
+                                  child: ListView(
+                                    children: [
+                                      ..._leaderboard_render,
+                                    ],
+                                  ),
                                 ),
                             ],
                         ),

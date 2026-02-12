@@ -42,6 +42,22 @@ class TopsOJ extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
         ),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,                      // 平时无阴影（可选，但常一起设）
+          scrolledUnderElevation: 0,         // ← 核心！全局让滚动时也不抬升/不变色
+          surfaceTintColor: Colors.transparent, // 额外保险，防止 tint 染色（强烈推荐）
+          shadowColor: Colors.transparent,
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,          // 預設改成 floating
+          shape: RoundedRectangleBorder(                // 可選：更好看
+            borderRadius: BorderRadius.circular(8),
+          ),
+          elevation: 6,
+          showCloseIcon: true,
+          closeIconColor: Theme.of(context).colorScheme.onPrimary,
+          dismissDirection: DismissDirection.down,
+        ),
       ),
       home: const MainPage(),
     );
@@ -94,7 +110,10 @@ class _MainPageState extends ConsumerState<MainPage> {
         _weeklylb_render.add(
           ListTile(
             title: Text(lb['username']),
-            subtitle: Text("${lb['total_points']} Points"),
+            trailing: Text(
+              "${lb['total_points']} Points",
+              style: const TextStyle(fontSize: 15),
+            ),
             leading: Text("${lb['rank']}"),
           ),
         );
