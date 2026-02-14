@@ -31,9 +31,13 @@ class _RankingState extends ConsumerState<RankingPage> {
 
       try {
         final url = Uri.parse('https://topsoj.com/api/rankings');
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        String? apiKey = prefs.getString('apiKey');
+        var headers = {'Authorization': 'Bearer $apiKey'};
 
         final response = await http.post(
           url,
+          headers: headers,
           body: {
             'page': _page.toString(),
             'leaderboard_type': _ranking_category,
@@ -75,11 +79,11 @@ class _RankingState extends ConsumerState<RankingPage> {
                 leading = Icon(
                   Icons.emoji_events_rounded,
                   color: medalColor,
-                  size: 30,
+                  size: 35,
                 );
               } else {
                 leading = Container(
-                  width: 30,
+                  width: 35,
                   alignment: Alignment.center,
                   child: Text(
                     currentRank.toString(),
