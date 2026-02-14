@@ -66,7 +66,10 @@ class _ProblemsState extends ConsumerState<Problems> {
       return;
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Search Error: ${response.statusCode} ${jsonData['message']}')),
+        SnackBar(
+          content: Text('Search Error: ${response.statusCode} ${jsonData['message']}'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
