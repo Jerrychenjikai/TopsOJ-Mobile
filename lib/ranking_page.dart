@@ -204,25 +204,29 @@ class _RankingState extends ConsumerState<RankingPage> {
                                     const Spacer(),   // 关键：让下拉菜单始终居中
 
                                     // 原 DropdownButton（完全不变）
-                                    DropdownButton<String>(
-                                      value: _ranking_category,
-                                      hint: Text('Please choose ranking category'),
-                                      underline: Container(
-                                        height: 2,
-                                        color: Theme.of(context).primaryColor,
+                                    SizedBox(
+                                      width: 150, // 想要的宽度
+                                      child: DropdownButton<String>(
+                                        isExpanded: true,
+                                        value: _ranking_category,
+                                        hint: Text('Please choose ranking category'),
+                                        underline: Container(
+                                          height: 2,
+                                          color: Theme.of(context).primaryColor,
+                                        ),
+                                        items: categories.map((String value) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        }).toList(),
+                                        onChanged: (String? newValue) {
+                                          setState(() {
+                                            _ranking_category = newValue ?? "total points";
+                                            _fetch_ranking_data();
+                                          });
+                                        },
                                       ),
-                                      items: categories.map((String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }).toList(),
-                                      onChanged: (String? newValue) {
-                                        setState(() {
-                                          _ranking_category = newValue ?? "total points";
-                                          _fetch_ranking_data();
-                                        });
-                                      },
                                     ),
 
                                     const Spacer(),   // 关键：让下拉菜单始终居中

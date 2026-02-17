@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:TopsOJ/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
 import "package:TopsOJ/perfect_square.dart";
+import "package:TopsOJ/mental_math.dart";
+
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -281,7 +283,9 @@ class HomePage extends ConsumerWidget {
                               side: BorderSide(color: Colors.green),
                             ),
                             onPressed: () {
-                              //add code to jump
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => MentalMathWidget()),
+                              );
                             },
                             child: const Text('Mental Math'),
                           ),
