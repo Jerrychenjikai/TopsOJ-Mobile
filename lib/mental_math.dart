@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'dart:math';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+import 'package:TopsOJ/basic_func.dart';
+import 'package:TopsOJ/login_page.dart';
 
 enum GamePhase {
   config,
@@ -143,13 +148,54 @@ class GameNotifier extends StateNotifier<GameState> {
     return drills;
   }
 
-  // 占位函数：将来用于向服务器提交用时（currently empty）
-  void sendTimeToServer(Duration timeTaken) {
-    // TODO: 实现将来提交用时到服务器的逻辑
-    // 目前这是占位函数。不要在这里实现任何耗时/异步逻辑。
+  // sendTimeToServer: 检查登录 -> 提交到 topsoj 提交接口
+  Future<void> sendTimeToServer(BuildContext context, Duration timeTaken) async {
+    // 尝试拿到当前登录信息（与示例一致）
+    var s = await checkLogin();
+    if (s == null) {
+      // 如果未登录，弹出登录（popLogin 返回 true 表示登录成功）
+      final success = await popLogin(context);
+      if (success != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Not logged in, score not submitted')),
+        );
+        return;
+      }
+      // 再次获取登录信息
+      s = await checkLogin();
+    }
+
+    final String apiKey = s['apikey'];
+    final headers = {
+      'Authorization': 'Bearer $apiKey',
+      'Content-Type': 'application/json',
+    };
+
+    // 服务端期望 timeTaken 是以秒为单位的数值（可带小数），服务端会 *1000 转为毫秒
+    final double timeTakenSeconds = timeTaken.inMilliseconds / 1000.0;
+    final body = jsonEncode({'timeTaken': timeTakenSeconds});
+
+    try {
+      final uri = Uri.parse('https://topsoj.com/submit-time');
+      final response = await http
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        debugPrint('submit-time success');
+      } else {
+        debugPrint(
+            'submit-time failed: ${response.statusCode} - ${response.body}');
+        // 根据需要可以在 UI 上提示用户或重试（此处只打印）
+      }
+    } catch (e, st) {
+      debugPrint('Error submitting time: $e\n$st');
+      // 捕获异常（超时/网络错误等），避免崩溃
+    }
   }
 
-  void submitAnswer(int userAnswer) {
+  // 修改后的 submitAnswer：注意它现在是 async，并接收 BuildContext
+  Future<void> submitAnswer(BuildContext context, int userAnswer) async {
     final newUserAnswers = List<int?>.from(state.userAnswers);
     newUserAnswers[state.currentIndex] = userAnswer;
     state = state.copyWith(userAnswers: newUserAnswers);
@@ -162,9 +208,9 @@ class GameNotifier extends StateNotifier<GameState> {
         totalTime: totalTime,
       );
 
-      // If this was a ranked game, call the placeholder sendTimeToServer.
+      // 如果是排行赛，提交成绩（等待完成以确保提交成功，或改为不 await fire-and-forget）
       if (state.isRanked) {
-        sendTimeToServer(totalTime);
+        await sendTimeToServer(context, totalTime);
       }
     } else {
       state = state.copyWith(currentIndex: nextIndex);
@@ -600,12 +646,12 @@ class _MentalMathWidgetState extends ConsumerState<MentalMathWidget> {
         ),
         const SizedBox(height: 32),
         ElevatedButton(
-          onPressed: () {
+          onPressed: () async {
             final value = _answerController.text;
             final int? userAnswer = int.tryParse(value);
             if (userAnswer != null) {
               _answerController.clear();
-              gameNotifier.submitAnswer(userAnswer);
+              await gameNotifier.submitAnswer(context, userAnswer);
               // reset local timer display to keep correctness with server time
               setState(() {});
             } else {

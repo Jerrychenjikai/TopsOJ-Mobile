@@ -103,6 +103,191 @@ class BattleController extends StateNotifier<BattleState> {
   final Guid serviceUuid = Guid('05216c6d-7508-44c5-ae43-55cc4d06cbef');
   final Guid charUuid = Guid('12345678-1234-5678-1234-567812345678'); // 自定义char UUID
 
+  // ==================== 新增：协议层 ====================
+  String? peerCentralId;                    // Host 专用：记录 Client 的 deviceId
+  StreamSubscription<List<int>>? _notifSub; // Client 专用：监听通知
+
+  // 统一发送（Host 用 notify，Client 用 writeWithResponse）
+  Future<void> _sendMessage(Map<String, dynamic> payload) async {
+    final jsonStr = jsonEncode(payload);
+    final data = Uint8List.fromList(utf8.encode(jsonStr));
+
+    try {
+      if (isHost) {
+        await ble_peri.BlePeripheral.updateCharacteristic(
+          characteristicId: charUuid.toString(),
+          value: data,
+          // deviceId: peerCentralId,   // 只发给特定设备（可选，单人匹配可省略）
+        );
+        print('🟢 Host 发送: ${payload['type']}');
+      } else if (deviceIdChar != null) {
+        await deviceIdChar!.write(data, withoutResponse: false);
+        print('🟢 Client 发送: ${payload['type']}');
+      }
+    } catch (e) {
+      print('❌ 发送失败: $e');
+    }
+  }
+
+  // 统一接收处理
+  void _handleIncomingMessage(Uint8List rawData, {String? fromDeviceId}) {
+    try {
+      final jsonStr = utf8.decode(rawData);
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final type = map['type'] as String;
+
+      print('📥 收到消息: $type ${fromDeviceId != null ? "from $fromDeviceId" : ""}');
+
+      if (fromDeviceId != null) peerCentralId = fromDeviceId; // Host 记录对端
+
+      switch (type) {
+        case 'MATCH_INIT':
+          if (!isHost) _handleMatchInit(map);
+          break;
+        case 'ACK':
+          if (isHost) _handleAck();
+          break;
+        case 'PROBLEM_IDS':
+          if (!isHost) _handleProblemIds(map);
+          break;
+        case 'TIME_SYNC':
+          if (!isHost) _handleTimeSync(map);
+          break;
+        case 'START':
+          if (!isHost) _handleStart(map);
+          break;
+        case 'NEXT':
+          _handleNext(map);
+          break;
+        case 'DISPLAY':
+          _handleDisplay(map);
+          break;
+        case 'ANSWER':
+          _handleAnswer(map);
+          break;
+        case 'ROUND_RESULT':
+          _handleRoundResult(map);
+          break;
+        case 'END':
+          _handleEnd(map);
+          break;
+        default:
+          print('未知消息类型: $type');
+      }
+    } catch (e) {
+      print('消息解析失败: $e');
+    }
+  }
+
+  // ==================== 协议具体处理函数（可继续扩展） ====================
+  void _handleMatchInit(Map<String, dynamic> data) {
+    // TODO: 这里可以弹出对话框让用户确认，暂时自动接受
+    print('收到 MATCH_INIT: ${data['numQuestions']}题');
+    _sendMessage({'type': 'ACK'});
+    // 后续流程由 Host 推动
+  }
+
+  void _handleAck() {
+    print('Client 已接受，开始准备题目...');
+    // 接下来 Host 可以调用 startProblemPrep()
+  }
+
+  void _handleProblemIds(Map<String, dynamic> data) {
+    print('收到题目ID列表: ${data['ids']}');
+    // 保存到本地变量，后面 fetch 题目用
+  }
+
+  void _handleTimeSync(Map<String, dynamic> data) {
+    print('时间同步完成 offset=${data['offset']}');
+    // Client 保存 offset，后续所有时间都用 hostTime - offset
+  }
+
+  void _handleStart(Map<String, dynamic> data) {
+    print('比赛开始！startAt=${data['startAt']}');
+    state = const Playing(0);
+  }
+
+  void _handleNext(Map<String, dynamic> data) {
+    final idx = data['qIndex'] as int;
+    print('下一题: $idx');
+    state = Playing(idx);
+  }
+
+  void _handleDisplay(Map<String, dynamic> data) {
+    print('题目显示时间: ${data['displayAt']}，结束时间: ${data['endAt']}');
+    // 这里可以通知 UI 开始倒计时
+  }
+
+  void _handleAnswer(Map<String, dynamic> data) {
+    print('收到对方提交: ${data['result']}');
+    // Host 收集双方答案，判断谁先等
+  }
+
+  void _handleRoundResult(Map<String, dynamic> data) {
+    print('本轮结果: ${data}');
+  }
+
+  void _handleEnd(Map<String, dynamic> data) {
+    print('比赛结束，胜者: ${data['winner']}');
+    state = Result(data['myScore'] ?? 0, data['peerScore'] ?? 0);
+  }
+
+  // ==================== Host 主动发起的流程 ====================
+  Future<void> initiateMatch({
+    required int numQuestions,
+    required int pointInterval,
+  }) async {
+    if (!isHost) return;
+    final matchToken = _uuid.v4();
+    await _sendMessage({
+      'type': 'MATCH_INIT',
+      'hostUid': '你的hostUid', // 从登录拿
+      'numQuestions': numQuestions,
+      'pointInterval': pointInterval,
+      'matchToken': matchToken,
+    });
+  }
+
+  Future<void> sendProblemIds(List<String> ids) async {
+    if (!isHost) return;
+    await _sendMessage({'type': 'PROBLEM_IDS', 'ids': ids});
+  }
+
+  // 时间同步示例（5次往返，简化版，可自行改成 Future.wait）
+  Future<void> startTimeSync() async {
+    if (!isHost) return;
+    // 实际项目中建议用 Completer + 超时做精确 RTT 计算，这里演示结构
+    for (int i = 0; i < 5; i++) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await _sendMessage({'type': 'SYNC_REQUEST', 'hostTime': now});
+      await Future.delayed(const Duration(milliseconds: 300)); // 模拟等待响应
+    }
+    // 计算 offset 后发送
+    await _sendMessage({'type': 'TIME_SYNC', 'offset': 123, 'rtt': 45});
+  }
+
+  Future<void> sendStart(int startAtMs) async {
+    if (!isHost) return;
+    await _sendMessage({'type': 'START', 'startAt': startAtMs});
+  }
+
+  Future<void> sendNext(int qIndex) async {
+    if (!isHost) return;
+    await _sendMessage({'type': 'NEXT', 'qIndex': qIndex});
+  }
+
+  // Client 提交答案示例（在 PlayingView 的提交按钮里调用）
+  Future<void> sendAnswer(int qIndex, String result, int timeTakenMs) async {
+    if (isHost) return; // Host 也需要提交，但走不同逻辑
+    await _sendMessage({
+      'type': 'ANSWER',
+      'qIndex': qIndex,
+      'result': result,
+      'timeTakenMs': timeTakenMs,
+      'localSubmitTime': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
   Future<void> startHost() async {
 
     // Request permissions (原有)
@@ -185,11 +370,10 @@ class BattleController extends StateNotifier<BattleState> {
 
     // this is the function to cope with write requests
     ble_peri.BlePeripheral.setWriteRequestCallback((String remoteDeviceId, String characteristicUuid, int offset, Uint8List? value) {
-      print('📤 Write request: value: $value');
-      // 处理写入逻辑...
-      return ble_peri.WriteRequestResult(
-        status: 0,   // 0 = 成功
-      );
+      if (value != null && characteristicUuid == charUuid.toString()) {
+        _handleIncomingMessage(value, fromDeviceId: remoteDeviceId);
+      }
+      return ble_peri.WriteRequestResult(status: 0);
     });
 
     ble_peri.BlePeripheral.setReadRequestCallback(
@@ -299,8 +483,13 @@ class BattleController extends StateNotifier<BattleState> {
             deviceIdChar = service.characteristics.firstWhere((c) => c.uuid == charUuid);
 
             try {
-              await deviceIdChar!.setNotifyValue(true);  // Subscribe to notifications
+              await deviceIdChar!.setNotifyValue(true);
               print('Subscribed to characteristic');
+
+              // ★★★ 新增：监听通知
+              _notifSub = deviceIdChar!.onValueChangedStream.listen((value) {
+                _handleIncomingMessage(Uint8List.fromList(value));
+              });
             } catch (e) {
               print('Subscription failed: $e');
               reset();
@@ -391,24 +580,15 @@ class BattleController extends StateNotifier<BattleState> {
   }
 
   void reset() {
-    // 停止 central 扫描（防止还在监听 scanResults）
+    _notifSub?.cancel();
+    _notifSub = null;
+    peerCentralId = null;
+
     FlutterBluePlus.stopScan().catchError((e) => print('Stop scan error: $e'));
-
-    // 停止 peripheral 广播（最关键！）
-    ble_peri.BlePeripheral.stopAdvertising().then((_) {
-      print('Advertising stopped in reset');
-    }).catchError((e) {
-      print('Stop advertising error: $e');
-    });
-
-    // 可选：清理添加的服务（如果下次 startScan 会重新 addService，避免重复添加冲突）
-    // _blePeripheral.clearServices();  // 如果你的逻辑每次都重新 addService，可以调用这个
-    // 注意：clearServices 后，下次 start 前需重新 addService
-
-    // 清理变量（防止旧引用导致 bug）
+    ble_peri.BlePeripheral.stopAdvertising().catchError((e) => print('Stop adv error: $e'));
     peerDevice?.disconnect().catchError((e) => print('Disconnect error: $e'));
+
     peerDevice = null;
-    peerDeviceId = null;
     deviceIdChar = null;
     isHost = false;
     state = Idle();
@@ -539,12 +719,21 @@ class ReadyView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(battleProvider.notifier);
     return Center(
-      child: ElevatedButton(
-        onPressed: () {
-          ref.read(battleProvider.notifier).startBattle();
-        },
-        child: const Text("Ready?- Start Battle"),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(notifier.isHost ? "你是 Host（出题方）" : "你是 Client（挑战方）"),
+          const SizedBox(height: 20),
+          if (notifier.isHost)
+            ElevatedButton(
+              onPressed: () => notifier.initiateMatch(numQuestions: 5, pointInterval: 10),
+              child: const Text("开始比赛（发送 MATCH_INIT）"),
+            )
+          else
+            const Text("等待 Host 开始..."),
+        ],
       ),
     );
   }

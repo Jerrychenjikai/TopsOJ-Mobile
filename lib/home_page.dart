@@ -245,7 +245,7 @@ class HomePage extends ConsumerWidget {
                               Expanded(child: const Text('Train your brain with custom drills.'),),
                             ],
                           ),
-                          const SizedBox(height: 8.0),
+                          /*const SizedBox(height: 8.0),
                           Row(
                             children: [
                               Chip(
@@ -256,7 +256,7 @@ class HomePage extends ConsumerWidget {
                               const SizedBox(width: 8.0),
                               Expanded(child: const Text('Race to locate triangle centers.'),),
                             ],
-                          ),
+                          ),*/
                           const SizedBox(height: 8.0),
                           Row(
                             children: [
@@ -289,7 +289,7 @@ class HomePage extends ConsumerWidget {
                             },
                             child: const Text('Mental Math'),
                           ),
-                          OutlinedButton(
+                          /*OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               shape: const StadiumBorder(),
                               side: BorderSide(color: Colors.green),
@@ -298,7 +298,7 @@ class HomePage extends ConsumerWidget {
                               //add code to jump
                             },
                             child: const Text('Triangulate'),
-                          ),
+                          ),*/
                           OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               shape: const StadiumBorder(),
@@ -319,7 +319,7 @@ class HomePage extends ConsumerWidget {
                         spacing: 8.0,
                         runSpacing: 8.0,
                         children: [
-                          OutlinedButton(
+                          /*OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               shape: const StadiumBorder(),
                               side: BorderSide(color: Colors.grey),
@@ -331,7 +331,7 @@ class HomePage extends ConsumerWidget {
                               ));
                             },
                             child: const Text('Triangulate Rankings'),
-                          ),
+                          ),*/
                           OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               shape: const StadiumBorder(),
