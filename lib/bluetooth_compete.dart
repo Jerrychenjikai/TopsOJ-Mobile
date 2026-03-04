@@ -107,6 +107,7 @@ class BattleController extends StateNotifier<BattleState> {
   // ==================== 新增：协议层 ====================
   String? peerCentralId;                    // Host 专用：记录 Client 的 deviceId
   StreamSubscription<List<int>>? _notifSub; // Client 专用：监听通知
+  StreamSubscription? _scanSub; // 新增这个
 
   // ==================== function to call snackbar ====================
   void Function(String message)? showSnackBar;
@@ -114,7 +115,6 @@ class BattleController extends StateNotifier<BattleState> {
   // ==================== match data ====================
   List<String> problem_ids = [];
   int numProblems = 0;
-  List<num> offsets = [0,0,0,0,0];
   int current_problem_index = 0;
   List<bool> self_finish = [];
   List<bool> self_correct = [];
@@ -125,6 +125,7 @@ class BattleController extends StateNotifier<BattleState> {
 
   // 统一发送（Host 用 notify，Client 用 writeWithResponse）
   Future<void> _sendMessage(Map<String, dynamic> payload) async {
+    await Future.delayed(Duration(milliseconds: 100));
     final jsonStr = jsonEncode(payload);
     final data = Uint8List.fromList(utf8.encode(jsonStr));
 
@@ -169,12 +170,6 @@ class BattleController extends StateNotifier<BattleState> {
         case 'ACK_PROBLEM_IDS':
           if (isHost) handleAckProblemIds();
           break;
-        case 'SYNC_REQUEST':
-          if (!isHost) handleTimeSync(map);
-          break;
-        case "ACK_SYNC_REQUEST":
-          if (isHost) handleAckTimeSync(map);
-          break;
         case 'START':
           //todo: add another back and forth to ensure problem is loaded before displaying
           if (!isHost) handleStart(map);
@@ -187,9 +182,6 @@ class BattleController extends StateNotifier<BattleState> {
           break;
         case 'NEXT':
           if (!isHost) handleNext(map);
-          break;
-        case 'ROUND_RESULT':
-          handleRoundResult(map);
           break;
         case 'END':
           handleEnd(map);
@@ -220,7 +212,8 @@ class BattleController extends StateNotifier<BattleState> {
       print("received all answers for problem ${current_problem_index}");
       print("host correct: ${self_correct[current_problem_index]}");
       print("client correct: ${opp_correct[current_problem_index]}");
-      await sendNext(current_problem_index+1);
+      if(current_problem_index<numProblems-1) await sendNext(current_problem_index+1);
+      else await sendEnd();
     }
   }
 
@@ -245,7 +238,8 @@ class BattleController extends StateNotifier<BattleState> {
       print("received all answers for problem ${current_problem_index}");
       print("host correct: ${self_correct[current_problem_index]}");
       print("client correct: ${opp_correct[current_problem_index]}");
-      await sendNext(current_problem_index+1);
+      if(current_problem_index<numProblems-1) await sendNext(current_problem_index+1);
+      else await sendEnd();
     }
   }
 
@@ -277,13 +271,6 @@ class BattleController extends StateNotifier<BattleState> {
     await _sendMessage({'type': 'ACK_PROBLEM_IDS'});
   }
 
-  Future<void> handleTimeSync(Map<String, dynamic> data) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    offsets[data['numb']] = now - data['hostTime'];
-    await _sendMessage({'type': 'ACK_SYNC_REQUEST', 'numb': data['numb'] });
-    // Client 保存 offset，后续所有时间都用 hostTime - offset
-  }
-
   void handleStart(Map<String, dynamic> data) {
     print('比赛开始！startAt=${data['startAt']}');
     current_problem_index = 0;
@@ -297,13 +284,9 @@ class BattleController extends StateNotifier<BattleState> {
     state = Playing(idx);
   }
 
-  void handleRoundResult(Map<String, dynamic> data) {
-    print('本轮结果: ${data}');
-  }
-
   void handleEnd(Map<String, dynamic> data) {
     print('比赛结束，胜者: ${data['winner']}');
-    state = Result(data['myScore'] ?? 0, data['peerScore'] ?? 0);
+    finish(data['clientScore'] ?? 0, data['hostScore'] ?? 0);
   }
 
   // ==================== Host的收/发消息的函数 ====================
@@ -344,28 +327,12 @@ class BattleController extends StateNotifier<BattleState> {
 
   Future<void> handleAckProblemIds() async {
     if (!isHost) return;
-    startTimeSync(0);
+    sendStart();
   }
 
-  // 时间同步示例
-  // 运行五次，每次numb+1
-  Future<void> startTimeSync(int numb) async { 
+  Future<void> sendStart() async {
     if (!isHost) return;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (numb == 5){
-      sendStart(now + 3000);//配合倒计时动画
-      return;
-    }
-    await _sendMessage({'type': 'SYNC_REQUEST', 'hostTime': now, 'numb': numb});
-  }
-
-  Future<void> handleAckTimeSync(Map<String, dynamic> data) async {
-    await startTimeSync(data['numb']+1);
-  }
-
-  Future<void> sendStart(int startAtMs) async {
-    if (!isHost) return;
-    await _sendMessage({'type': 'START', 'startAt': startAtMs});
+    await _sendMessage({'type': 'START'});
     current_problem_index = 0;
     state = const Playing(0);
   }
@@ -375,6 +342,22 @@ class BattleController extends StateNotifier<BattleState> {
     current_problem_index = qIndex;
     state = Playing(qIndex);
     await _sendMessage({'type': 'NEXT', 'qIndex': qIndex});
+  }
+
+  Future<void> sendEnd() async {
+    if (!isHost) return;
+
+    //calculate scores here
+    final hostScore = 40;
+    final clientScore = 50;
+
+    finish(hostScore, clientScore);
+
+    await _sendMessage({
+      'type': 'END', 
+      'hostScore': hostScore, 
+      'clientScore': clientScore
+    });
   }
 
   Future<void> startHost() async {
@@ -491,6 +474,7 @@ class BattleController extends StateNotifier<BattleState> {
       print('Advertising started');
     } catch (e) {
       print('Advertising failed: $e');
+      reset();
     }
 
     isHost = true;
@@ -534,7 +518,7 @@ class BattleController extends StateNotifier<BattleState> {
     );
 
     // Listen to scan results
-    FlutterBluePlus.scanResults.listen((results) async {
+    _scanSub = FlutterBluePlus.scanResults.listen((results) async {
       for (ScanResult r in results) {
         final adv = r.advertisementData;
         print('''
@@ -649,38 +633,46 @@ class BattleController extends StateNotifier<BattleState> {
     state = Ready();
   }
 
-  void startBattle() {
-    state = const Playing(0);
-  }
-
-  void nextQuestion() {
-    if (state is Playing) {
-      final current = (state as Playing).currentQuestionId;
-      if (current < 4) { // Simulate 5 questions (0-4)
-        state = Playing(current + 1);
-      } else {
-        finish(50, 40); // Arbitrary scores
-      }
-    }
-  }
-
   void finish(int my, int peer) {
     state = Result(my, peer);
   }
 
-  void reset() {
+  Future<void> reset() async {
     _notifSub?.cancel();
     _notifSub = null;
+    _scanSub?.cancel();
+    _scanSub = null;
+
     peerCentralId = null;
 
     FlutterBluePlus.stopScan().catchError((e) => print('Stop scan error: $e'));
     ble_peri.BlePeripheral.stopAdvertising().catchError((e) => print('Stop adv error: $e'));
     peerDevice?.disconnect().catchError((e) => print('Disconnect error: $e'));
 
+    // 新增：清空服务和回调
+    await ble_peri.BlePeripheral.clearServices().catchError((e) => print('Clear services error: $e'));
+
     peerDevice = null;
     deviceIdChar = null;
     isHost = false;
     state = Idle();
+
+    // 清空数据...
+    problem_ids = [];
+    numProblems = 0;
+    current_problem_index = 0;
+    self_finish = [];
+    self_correct = [];
+    opp_finish = [];
+    opp_correct = [];
+    self_time_taken = [];
+    opp_time_taken = [];
+
+    showSnackBar = null; // 新增：清空 SnackBar 回调
+
+    // 新增：延迟以确保蓝牙栈稳定
+    await Future.delayed(Duration(seconds: 1));
+    print('Reset fully completed');
   }
 }
 
