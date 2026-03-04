@@ -26,7 +26,7 @@ Procedure:
    Host -> Client: PROBLEM_IDS (writeWithResponse)
 
 3. 时间同步
-   Host 与 Client 进行 5 次 SYNC_REQUEST/SYNC_RESPONSE 往返，Host 计算 offset 并发送最终 TIME_SYNC {offset, rtt} 给 Client（writeWithResponse）
+   Host 与 Client 进行 5 次 SYNC_REQUEST/ACK_SYNC_REQUEST client 计算 offset
    starting now all time stamps are in terms of Host. Client has to convert its own time stamp
 
 4. 开始比赛
@@ -50,6 +50,7 @@ Procedure:
 //basic modules
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io' show Platform;
+import 'dart:math';
 import 'dart:async';
 import "dart:convert";
 import 'dart:typed_data';
@@ -107,6 +108,21 @@ class BattleController extends StateNotifier<BattleState> {
   String? peerCentralId;                    // Host 专用：记录 Client 的 deviceId
   StreamSubscription<List<int>>? _notifSub; // Client 专用：监听通知
 
+  // ==================== function to call snackbar ====================
+  void Function(String message)? showSnackBar;
+
+  // ==================== match data ====================
+  List<String> problem_ids = [];
+  int numProblems = 0;
+  List<num> offsets = [0,0,0,0,0];
+  int current_problem_index = 0;
+  List<bool> self_finish = [];
+  List<bool> self_correct = [];
+  List<bool> opp_finish = [];
+  List<bool> opp_correct = [];
+  List<int> self_time_taken = [];
+  List<int> opp_time_taken = [];
+
   // 统一发送（Host 用 notify，Client 用 writeWithResponse）
   Future<void> _sendMessage(Map<String, dynamic> payload) async {
     final jsonStr = jsonEncode(payload);
@@ -142,34 +158,41 @@ class BattleController extends StateNotifier<BattleState> {
 
       switch (type) {
         case 'MATCH_INIT':
-          if (!isHost) _handleMatchInit(map);
+          if (!isHost) handleMatchInit(map);
           break;
-        case 'ACK':
-          if (isHost) _handleAck();
+        case 'ACK_MATCH_INIT':
+          if (isHost) handleAckMathInit();
           break;
         case 'PROBLEM_IDS':
-          if (!isHost) _handleProblemIds(map);
+          if (!isHost) handleProblemIds(map);
           break;
-        case 'TIME_SYNC':
-          if (!isHost) _handleTimeSync(map);
+        case 'ACK_PROBLEM_IDS':
+          if (isHost) handleAckProblemIds();
+          break;
+        case 'SYNC_REQUEST':
+          if (!isHost) handleTimeSync(map);
+          break;
+        case "ACK_SYNC_REQUEST":
+          if (isHost) handleAckTimeSync(map);
           break;
         case 'START':
-          if (!isHost) _handleStart(map);
-          break;
-        case 'NEXT':
-          _handleNext(map);
-          break;
-        case 'DISPLAY':
-          _handleDisplay(map);
+          //todo: add another back and forth to ensure problem is loaded before displaying
+          if (!isHost) handleStart(map);
           break;
         case 'ANSWER':
-          _handleAnswer(map);
+          handleAnswer(map);
+          break;
+        case 'ACK_ANSWER':
+          handleAnswerAck();
+          break;
+        case 'NEXT':
+          if (!isHost) handleNext(map);
           break;
         case 'ROUND_RESULT':
-          _handleRoundResult(map);
+          handleRoundResult(map);
           break;
         case 'END':
-          _handleEnd(map);
+          handleEnd(map);
           break;
         default:
           print('未知消息类型: $type');
@@ -179,60 +202,111 @@ class BattleController extends StateNotifier<BattleState> {
     }
   }
 
-  // ==================== 协议具体处理函数（可继续扩展） ====================
-  void _handleMatchInit(Map<String, dynamic> data) {
+  // =================== 双方都需要用到的函数 ================
+  // 双方给对方提交答案示例（在 PlayingView 的提交按钮里调用）
+  Future<void> sendAnswer(int qIndex, bool result, int timeTakenMs) async {
+    self_finish[qIndex] = true;
+    self_correct[qIndex] = result;
+    self_time_taken[qIndex] = timeTakenMs;
+    await _sendMessage({
+      'type': 'ANSWER',
+      'qIndex': qIndex,//int
+      'result': result,//bool: 做没做对
+      'timeTakenMs': timeTakenMs,//int
+      'localSubmitTime': DateTime.now().millisecondsSinceEpoch,//host time
+    });
+
+    if (isHost && self_finish[current_problem_index] && opp_finish[current_problem_index]){
+      print("received all answers for problem ${current_problem_index}");
+      print("host correct: ${self_correct[current_problem_index]}");
+      print("client correct: ${opp_correct[current_problem_index]}");
+      await sendNext(current_problem_index+1);
+    }
+  }
+
+  Future<void> handleAnswer(Map<String, dynamic> data) async {
+    print('收到对方提交: ${data['result']}');
+
+    final qIndex = data['qIndex'];
+    final result = data['result'];
+    final timeTaken = data['timeTakenMs'];
+
+    showSnackBar?.call('对手已提交：第 $qIndex 题 — $result （${timeTaken ?? 0} ms）');
+
+    opp_finish[qIndex] = true;
+    opp_correct[qIndex] = result;
+    opp_time_taken[qIndex] = timeTaken;
+
+    await _sendMessage({
+      'type': "ACK_ANSWER",
+    });
+
+    if (isHost && self_finish[current_problem_index] && opp_finish[current_problem_index]){
+      print("received all answers for problem ${current_problem_index}");
+      print("host correct: ${self_correct[current_problem_index]}");
+      print("client correct: ${opp_correct[current_problem_index]}");
+      await sendNext(current_problem_index+1);
+    }
+  }
+
+  Future<void> handleAnswerAck() async {
+    print("opponent received my answer");
+  }
+
+  // ==================== Client的收/发消息的函数 ====================
+  Future<void> handleMatchInit(Map<String, dynamic> data) async {
     // TODO: 这里可以弹出对话框让用户确认，暂时自动接受
     print('收到 MATCH_INIT: ${data['numQuestions']}题');
-    _sendMessage({'type': 'ACK'});
+    await _sendMessage({'type': 'ACK_MATCH_INIT'});
     // 后续流程由 Host 推动
   }
 
-  void _handleAck() {
-    print('Client 已接受，开始准备题目...');
-    // 接下来 Host 可以调用 startProblemPrep()
-  }
-
-  void _handleProblemIds(Map<String, dynamic> data) {
+  Future<void> handleProblemIds(Map<String, dynamic> data) async {
     print('收到题目ID列表: ${data['ids']}');
     // 保存到本地变量，后面 fetch 题目用
+    problem_ids = (data['ids'] as List<dynamic>).cast<String>();
+    numProblems = problem_ids.length;
+    for(int i=0; i<numProblems; i++){
+      self_finish.add(false);
+      self_correct.add(false);
+      opp_finish.add(false);
+      opp_correct.add(false);
+      self_time_taken.add(0);
+      opp_time_taken.add(0);
+    }
+    await _sendMessage({'type': 'ACK_PROBLEM_IDS'});
   }
 
-  void _handleTimeSync(Map<String, dynamic> data) {
-    print('时间同步完成 offset=${data['offset']}');
+  Future<void> handleTimeSync(Map<String, dynamic> data) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    offsets[data['numb']] = now - data['hostTime'];
+    await _sendMessage({'type': 'ACK_SYNC_REQUEST', 'numb': data['numb'] });
     // Client 保存 offset，后续所有时间都用 hostTime - offset
   }
 
-  void _handleStart(Map<String, dynamic> data) {
+  void handleStart(Map<String, dynamic> data) {
     print('比赛开始！startAt=${data['startAt']}');
+    current_problem_index = 0;
     state = const Playing(0);
   }
 
-  void _handleNext(Map<String, dynamic> data) {
+  void handleNext(Map<String, dynamic> data) {
     final idx = data['qIndex'] as int;
     print('下一题: $idx');
+    current_problem_index = idx;
     state = Playing(idx);
   }
 
-  void _handleDisplay(Map<String, dynamic> data) {
-    print('题目显示时间: ${data['displayAt']}，结束时间: ${data['endAt']}');
-    // 这里可以通知 UI 开始倒计时
-  }
-
-  void _handleAnswer(Map<String, dynamic> data) {
-    print('收到对方提交: ${data['result']}');
-    // Host 收集双方答案，判断谁先等
-  }
-
-  void _handleRoundResult(Map<String, dynamic> data) {
+  void handleRoundResult(Map<String, dynamic> data) {
     print('本轮结果: ${data}');
   }
 
-  void _handleEnd(Map<String, dynamic> data) {
+  void handleEnd(Map<String, dynamic> data) {
     print('比赛结束，胜者: ${data['winner']}');
     state = Result(data['myScore'] ?? 0, data['peerScore'] ?? 0);
   }
 
-  // ==================== Host 主动发起的流程 ====================
+  // ==================== Host的收/发消息的函数 ====================
   Future<void> initiateMatch({
     required int numQuestions,
     required int pointInterval,
@@ -248,44 +322,59 @@ class BattleController extends StateNotifier<BattleState> {
     });
   }
 
+  Future<void> handleAckMathInit() async {
+    print('Client 已接受，开始准备题目...');
+    numProblems = 2;
+    problem_ids = ['2011_amc12A_p01','2012_amc12A_p01'];
+    for(int i=0; i<numProblems; i++){
+      self_finish.add(false);
+      self_correct.add(false);
+      opp_finish.add(false);
+      opp_correct.add(false);
+      self_time_taken.add(0);
+      opp_time_taken.add(0);
+    }
+    sendProblemIds(problem_ids);
+  }
+
   Future<void> sendProblemIds(List<String> ids) async {
     if (!isHost) return;
     await _sendMessage({'type': 'PROBLEM_IDS', 'ids': ids});
   }
 
-  // 时间同步示例（5次往返，简化版，可自行改成 Future.wait）
-  Future<void> startTimeSync() async {
+  Future<void> handleAckProblemIds() async {
     if (!isHost) return;
-    // 实际项目中建议用 Completer + 超时做精确 RTT 计算，这里演示结构
-    for (int i = 0; i < 5; i++) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      await _sendMessage({'type': 'SYNC_REQUEST', 'hostTime': now});
-      await Future.delayed(const Duration(milliseconds: 300)); // 模拟等待响应
+    startTimeSync(0);
+  }
+
+  // 时间同步示例
+  // 运行五次，每次numb+1
+  Future<void> startTimeSync(int numb) async { 
+    if (!isHost) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (numb == 5){
+      sendStart(now + 3000);//配合倒计时动画
+      return;
     }
-    // 计算 offset 后发送
-    await _sendMessage({'type': 'TIME_SYNC', 'offset': 123, 'rtt': 45});
+    await _sendMessage({'type': 'SYNC_REQUEST', 'hostTime': now, 'numb': numb});
+  }
+
+  Future<void> handleAckTimeSync(Map<String, dynamic> data) async {
+    await startTimeSync(data['numb']+1);
   }
 
   Future<void> sendStart(int startAtMs) async {
     if (!isHost) return;
     await _sendMessage({'type': 'START', 'startAt': startAtMs});
+    current_problem_index = 0;
+    state = const Playing(0);
   }
 
   Future<void> sendNext(int qIndex) async {
     if (!isHost) return;
+    current_problem_index = qIndex;
+    state = Playing(qIndex);
     await _sendMessage({'type': 'NEXT', 'qIndex': qIndex});
-  }
-
-  // Client 提交答案示例（在 PlayingView 的提交按钮里调用）
-  Future<void> sendAnswer(int qIndex, String result, int timeTakenMs) async {
-    if (isHost) return; // Host 也需要提交，但走不同逻辑
-    await _sendMessage({
-      'type': 'ANSWER',
-      'qIndex': qIndex,
-      'result': result,
-      'timeTakenMs': timeTakenMs,
-      'localSubmitTime': DateTime.now().millisecondsSinceEpoch,
-    });
   }
 
   Future<void> startHost() async {
@@ -648,6 +737,15 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
   Widget build(BuildContext context) {
     final state = ref.watch(battleProvider);
 
+    ref.read(battleProvider.notifier).showSnackBar = (String message) {
+      // 这里确保在主线程并且 UI 存在时才弹出
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      });
+    };
+
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -728,7 +826,7 @@ class ReadyView extends ConsumerWidget {
           const SizedBox(height: 20),
           if (notifier.isHost)
             ElevatedButton(
-              onPressed: () => notifier.initiateMatch(numQuestions: 5, pointInterval: 10),
+              onPressed: () => notifier.initiateMatch(numQuestions: 2, pointInterval: 10),//point interval used to filter problems, but now it is useless
               child: const Text("开始比赛（发送 MATCH_INIT）"),
             )
           else
@@ -745,12 +843,92 @@ class PlayingView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(battleProvider.notifier);
+    final problemIds = notifier.problem_ids;
+    // 显示题目内容的简单模拟：若有 problem_ids 则显示对应 id，否则显示占位文本
+    final problemText = (problemIds.isNotEmpty && questionIndex < problemIds.length)
+        ? '题目: ${problemIds[questionIndex]}' // 你可以把 id 替换为实际题目文本
+        : '题目 #${questionIndex}（占位）';
+
     return Center(
-      child: ElevatedButton(
-        onPressed: () {
-          ref.read(battleProvider.notifier).nextQuestion();
-        },
-        child: Text("Next Question ($questionIndex/4)"),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 当前题号
+            Text(
+              'Current Problem Index: $questionIndex',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+
+            // 显示题目内容（模拟）
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Text(
+                  problemText,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // 两个模拟按钮：做对 / 做错
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    // 模拟答题耗时（1~10 秒）
+                    final timeTakenMs = Random().nextInt(9000) + 1000;
+                    await notifier.sendAnswer(questionIndex, true, timeTakenMs);
+                    // 可选：在本端做本地提示
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('已发送 ANSWER (correct) for #$questionIndex, time=${timeTakenMs}ms')),
+                    );
+                  },
+                  icon: const Icon(Icons.check),
+                  label: const Text('Simulate Correct'),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(150, 44),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final timeTakenMs = Random().nextInt(9000) + 1000;
+                    await notifier.sendAnswer(questionIndex, false, timeTakenMs);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('已发送 ANSWER (wrong) for #$questionIndex, time=${timeTakenMs}ms')),
+                    );
+                  },
+                  icon: const Icon(Icons.close),
+                  label: const Text('Simulate Wrong'),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(150, 44),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // 额外显示：本地状态（可选，用于调试）
+            Builder(builder: (_) {
+              // 试着读取 controller 内部的状态数组（如果尚未初始化，使用 fallback）
+              final selfFinish = (notifier.self_finish.length > questionIndex)
+                  ? notifier.self_finish[questionIndex]
+                  : false;
+              final oppFinish = (notifier.opp_finish.length > questionIndex)
+                  ? notifier.opp_finish[questionIndex]
+                  : false;
+              return Text('本端已提交: ${selfFinish ? "是" : "否"}    对方已提交: ${oppFinish ? "是" : "否"}');
+            }),
+          ],
+        ),
       ),
     );
   }
