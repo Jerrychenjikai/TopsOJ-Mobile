@@ -259,8 +259,8 @@ class BattleController extends StateNotifier<BattleState> {
 
   Future<void> handleAckMathInit() async {
     print('Client 已接受，开始准备题目...');
-    numProblems = 2;
-    problem_ids = ['11_amc12A_p01','12_amc12A_p01'];
+    numProblems = 2;//TODO: This should be obtained from UI
+    problem_ids = ['11_amc12A_p02','12_amc12A_p01'];//TODO: This should be randomly fetched from server
     for(int i=0; i<numProblems; i++){
       self_finish.add(false);
       self_correct.add(false);
@@ -299,7 +299,7 @@ class BattleController extends StateNotifier<BattleState> {
   Future<void> sendEnd() async {
     if (!isHost) return;
 
-    //calculate scores here
+    //TODO: calculate scores here based on correct and timetaken
     final hostScore = 40;
     final clientScore = 50;
 
@@ -313,8 +313,6 @@ class BattleController extends StateNotifier<BattleState> {
   }
 
   Future<void> startHost() async {
-
-    // Request permissions (原有)
     if (await Permission.bluetooth.request().isDenied ||
         await Permission.bluetoothScan.request().isDenied ||
         await Permission.bluetoothAdvertise.request().isDenied ||
@@ -601,7 +599,7 @@ class BattleController extends StateNotifier<BattleState> {
     ble_peri.BlePeripheral.stopAdvertising().catchError((e) => print('Stop adv error: $e'));
     peerDevice?.disconnect().catchError((e) => print('Disconnect error: $e'));
 
-    // 新增：清空服务和回调
+    // 清空服务和回调
     await ble_peri.BlePeripheral.clearServices().catchError((e) => print('Clear services error: $e'));
 
     peerDevice = null;
@@ -619,10 +617,9 @@ class BattleController extends StateNotifier<BattleState> {
     opp_correct = [];
     self_time_taken = [];
     opp_time_taken = [];
+    showSnackBar = null; // 清空 SnackBar 回调
 
-    showSnackBar = null; // 新增：清空 SnackBar 回调
-
-    // 新增：延迟以确保蓝牙栈稳定
+    // 延迟以确保蓝牙栈稳定
     await Future.delayed(Duration(seconds: 1));
     print('Reset fully completed');
   }
@@ -693,13 +690,9 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
       appBar: AppBar(
         title: const Text("Math PvP"),
         centerTitle: true,
-        // 可选：根据你的风格调整
-        // backgroundColor: Colors.deepPurple,
-        // foregroundColor: Colors.white,
         elevation: 2,
       ),
       
-      // 主体包一层 SafeArea
       body: SafeArea(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
@@ -777,15 +770,15 @@ class ReadyView extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(notifier.isHost ? "你是 Host（出题方）" : "你是 Client（挑战方）"),
+          Text(notifier.isHost ? "You are Host" : "You are Client"),
           const SizedBox(height: 20),
           if (notifier.isHost)
             ElevatedButton(
               onPressed: () => notifier.initiateMatch(numQuestions: 2, pointInterval: 10),//point interval used to filter problems, but now it is useless
-              child: const Text("开始比赛（发送 MATCH_INIT）"),
+              child: const Text("Start match"),
             )
           else
-            const Text("等待 Host 开始..."),
+            const Text("Waiting for Host to start..."),
         ],
       ),
     );
@@ -807,6 +800,8 @@ class PlayingView extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            //TODO: display problem answer progress of opponent
+
             // 显示题目
             Expanded(
               child: Card(
@@ -820,7 +815,7 @@ class PlayingView extends ConsumerWidget {
                   isEmbedded: true,
                   onSubmitResult: (passed) async {
                     print(problemIds[questionIndex]);
-                    final timeTakenMs = Random().nextInt(9000) + 1000;
+                    final timeTakenMs = Random().nextInt(9000) + 1000;//TODO: measure time taken
                     await notifier.sendAnswer(questionIndex, passed, timeTakenMs);
                   },
                 ),
