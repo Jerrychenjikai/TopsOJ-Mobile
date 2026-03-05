@@ -47,6 +47,7 @@ dependencies:
   permission_handler: ^11.0.0
   ble_peripheral: ^2.4.0
   device_info_plus: ^10.1.2
+  numberpicker: ^2.1.2
   uuid: ^4.5.0
 
 dev_dependencies:

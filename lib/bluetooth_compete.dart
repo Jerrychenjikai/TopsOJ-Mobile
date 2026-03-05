@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 
 //frontend modules
 import 'package:flutter/material.dart';
+import 'package:numberpicker/numberpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 //backend modules
@@ -248,6 +249,7 @@ class BattleController extends StateNotifier<BattleState> {
   }) async {
     if (!isHost) return;
     final matchToken = _uuid.v4();
+    numProblems = numQuestions;
     await _sendMessage({
       'type': 'MATCH_INIT',
       'hostUid': '你的hostUid', // 从登录拿
@@ -259,9 +261,8 @@ class BattleController extends StateNotifier<BattleState> {
 
   Future<void> handleAckMathInit() async {
     print('Client 已接受，开始准备题目...');
-    numProblems = 2;//TODO: This should be obtained from UI
-    problem_ids = ['11_amc12A_p02','12_amc12A_p01'];//TODO: This should be randomly fetched from server
     for(int i=0; i<numProblems; i++){
+      problem_ids.add('11_amc12A_p05');
       self_finish.add(false);
       self_correct.add(false);
       opp_finish.add(false);
@@ -760,25 +761,63 @@ class ConnectingView extends ConsumerWidget {
   }
 }
 
-class ReadyView extends ConsumerWidget {
+class ReadyView extends ConsumerStatefulWidget {
   const ReadyView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReadyView> createState() => _ReadyViewState();
+}
+
+class _ReadyViewState extends ConsumerState<ReadyView> {
+  int _selectedQuestions = 5; // 默认5题
+
+  @override
+  Widget build(BuildContext context) {
     final notifier = ref.read(battleProvider.notifier);
+    final isHost = notifier.isHost;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(notifier.isHost ? "You are Host" : "You are Client"),
-          const SizedBox(height: 20),
-          if (notifier.isHost)
+          Text(isHost ? "You are Host" : "You are Client"),
+          const SizedBox(height: 32),
+
+          if (isHost) ...[
+            Text("Please select number of problems:"),
+            const SizedBox(height: 10),
+            NumberPicker(
+              minValue: 1,
+              maxValue: 10,
+              value: _selectedQuestions,
+              step: 1,
+              itemHeight: 50,
+              selectedTextStyle: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+              textStyle: const TextStyle(fontSize: 20),
+              onChanged: (value) => setState(() => _selectedQuestions = value),
+            ),
+            const SizedBox(height: 24),
+          ] else ...[
+            Text("Waiting for Host to set number of problems..."),
+            const SizedBox(height: 40),
+          ],
+
+          if (isHost)
             ElevatedButton(
-              onPressed: () => notifier.initiateMatch(numQuestions: 2, pointInterval: 10),//point interval used to filter problems, but now it is useless
-              child: const Text("Start match"),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+              ),
+              onPressed: () {
+                notifier.initiateMatch(
+                  numQuestions: _selectedQuestions,
+                  pointInterval: 10, // used to filter problems but useless right now
+                );
+              },
+              child: const Text("Start Match", style: TextStyle(fontSize: 18)),
             )
-          else
-            const Text("Waiting for Host to start..."),
         ],
       ),
     );
