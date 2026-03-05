@@ -150,6 +150,8 @@ class BattleController extends StateNotifier<BattleState> {
   // =================== 双方都需要用到的函数 ================
   // 双方给对方提交答案示例（在 PlayingView 的提交按钮里调用）
   Future<void> sendAnswer(int qIndex, bool result, int timeTakenMs) async {
+    if(self_finish[qIndex]) return;
+
     self_finish[qIndex] = true;
     self_correct[qIndex] = result;
     self_time_taken[qIndex] = timeTakenMs;
@@ -176,6 +178,11 @@ class BattleController extends StateNotifier<BattleState> {
     final qIndex = data['qIndex'];
     final result = data['result'];
     final timeTaken = data['timeTakenMs'];
+
+    if(opp_finish[qIndex]){
+      print("重复提交");
+      return;
+    }
 
     showSnackBar?.call('对手已提交：第 $qIndex 题 — $result （${timeTaken ?? 0} ms）');
 
