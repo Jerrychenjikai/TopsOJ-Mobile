@@ -1,52 +1,3 @@
-/*
-This is a bluetooth compete function
-bluetooth module: flutter_blue_plus
-
-Constraints:
-1. two users have to stay close to each other
-2. bluetooth on
-3. app stays in foreground
-
-Procedure: 
-(for now just ignore step 8 and assume that both host and client do not cheat.)
-(no interactions with server required except fetching problems)
-(for now assume login credit will not expire during match)
-
-1. 发现与连接:
-   由用户指定host和client
-   host广播，client扫描
-
-2. 握手与鉴权
-   Host asks user numQuestions and pointInterval
-   Host -> Client: MATCH_INIT {hostUid, numQuestions, pointInterval, matchToken} (writeWithResponse)
-   Client -> Host: ACK 或 REJECT
-
-3. 题目准备
-   Host 从服务器请求题目Id
-   Host -> Client: PROBLEM_IDS (writeWithResponse)
-
-3. 时间同步
-   Host 与 Client 进行 5 次 SYNC_REQUEST/ACK_SYNC_REQUEST client 计算 offset
-   starting now all time stamps are in terms of Host. Client has to convert its own time stamp
-
-4. 开始比赛
-   Host -> Client: START {startAt: host_time_ms}（writeWithResponse）
-   Both start when local_time >= convert(host_time_ms)
-
-5. 每题流程（循环）
-   Host -> Client: NEXT {qIndex}
-   both fetch problem content
-   when Client is ready: Client -> Host: READY
-   when Host is ready and Host received Client READY: Host -> Client {displayAt: host_time_ms, endAt: displayAt + max_duration (e.g. 3mins)} (writeWithResponse)
-   At displayAt both display simultaneously
-   On submit or on local_time > endAt: ANSWER {qIndex, result:AC/WA, timeTakenMs, localSubmitTime} (writeWithResponse)
-   When both submit: Host -> Client: ROUND_RESULT {qIndex, whoFirst, scores...} (writeWithResponse)
-
-6. 结束
-   Host -> Client: END {summary, winner}
-7. (for now ignore) Host send result to server (two uids, several pids, who wins). Server performs some type of check to verify (prolly through submission history) and give some type of reward
-*/
-
 //basic modules
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io' show Platform;
@@ -68,6 +19,7 @@ import 'package:ble_peripheral/ble_peripheral.dart' as ble_peri;
 
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
+import 'package:TopsOJ/problem_page.dart';
 
 sealed class BattleState {
   const BattleState();
@@ -308,7 +260,7 @@ class BattleController extends StateNotifier<BattleState> {
   Future<void> handleAckMathInit() async {
     print('Client 已接受，开始准备题目...');
     numProblems = 2;
-    problem_ids = ['2011_amc12A_p01','2012_amc12A_p01'];
+    problem_ids = ['11_amc12A_p01','12_amc12A_p01'];
     for(int i=0; i<numProblems; i++){
       self_finish.add(false);
       self_correct.add(false);
@@ -683,8 +635,6 @@ final battleProvider =
 class BattlePage extends StatelessWidget {
   const BattlePage ({super.key});
 
-  
-
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
@@ -718,9 +668,9 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
 
   @override
   void dispose() {
-    // 安全停止（即使没在运行也不会报错）
-    FlutterBluePlus.stopScan();
-    ble_peri.BlePeripheral.stopAdvertising();
+    // 调用 BattleController 的 reset() 方法
+    ref.read(battleProvider.notifier).reset();
+
     print("page exited, bluetooth scanning stopped");
     super.dispose();
   }
@@ -730,7 +680,7 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
     final state = ref.watch(battleProvider);
 
     ref.read(battleProvider.notifier).showSnackBar = (String message) {
-      // 这里确保在主线程并且 UI 存在时才弹出
+      // 确保在主线程并且 UI 存在时才弹出
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
@@ -739,18 +689,31 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
     };
 
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: switch (state) {
-          Idle() => const IdleView(),
-          Scanning() => const ScanningView(),
-          Connecting() => const ConnectingView(),
-          Ready() => const ReadyView(),
-          Playing(:final currentQuestionId) =>
-              PlayingView(questionIndex: currentQuestionId),
-          Result(:final myScore, :final peerScore) =>
-              ResultView(myScore: myScore, peerScore: peerScore),
-        },
+      // 加上 AppBar
+      appBar: AppBar(
+        title: const Text("Math PvP"),
+        centerTitle: true,
+        // 可选：根据你的风格调整
+        // backgroundColor: Colors.deepPurple,
+        // foregroundColor: Colors.white,
+        elevation: 2,
+      ),
+      
+      // 主体包一层 SafeArea
+      body: SafeArea(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: switch (state) {
+            Idle() => const IdleView(),
+            Scanning() => const ScanningView(),
+            Connecting() => const ConnectingView(),
+            Ready() => const ReadyView(),
+            Playing(:final currentQuestionId) =>
+                PlayingView(questionIndex: currentQuestionId),
+            Result(:final myScore, :final peerScore) =>
+                ResultView(myScore: myScore, peerScore: peerScore),
+          },
+        ),
       ),
     );
   }
@@ -837,10 +800,6 @@ class PlayingView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(battleProvider.notifier);
     final problemIds = notifier.problem_ids;
-    // 显示题目内容的简单模拟：若有 problem_ids 则显示对应 id，否则显示占位文本
-    final problemText = (problemIds.isNotEmpty && questionIndex < problemIds.length)
-        ? '题目: ${problemIds[questionIndex]}' // 你可以把 id 替换为实际题目文本
-        : '题目 #${questionIndex}（占位）';
 
     return Center(
       child: Padding(
@@ -848,77 +807,25 @@ class PlayingView extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 当前题号
-            Text(
-              'Current Problem Index: $questionIndex',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-
-            // 显示题目内容（模拟）
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Text(
-                  problemText,
-                  textAlign: TextAlign.center,
+            // 显示题目
+            Expanded(
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                clipBehavior: Clip.antiAlias, // 让内容跟随圆角裁剪
+                child: ProblemPage(
+                  problemId: problemIds[questionIndex],
+                  isEmbedded: true,
+                  onSubmitResult: (passed) async {
+                    print(problemIds[questionIndex]);
+                    final timeTakenMs = Random().nextInt(9000) + 1000;
+                    await notifier.sendAnswer(questionIndex, passed, timeTakenMs);
+                  },
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-
-            // 两个模拟按钮：做对 / 做错
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    // 模拟答题耗时（1~10 秒）
-                    final timeTakenMs = Random().nextInt(9000) + 1000;
-                    await notifier.sendAnswer(questionIndex, true, timeTakenMs);
-                    // 可选：在本端做本地提示
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('已发送 ANSWER (correct) for #$questionIndex, time=${timeTakenMs}ms')),
-                    );
-                  },
-                  icon: const Icon(Icons.check),
-                  label: const Text('Simulate Correct'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(150, 44),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final timeTakenMs = Random().nextInt(9000) + 1000;
-                    await notifier.sendAnswer(questionIndex, false, timeTakenMs);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('已发送 ANSWER (wrong) for #$questionIndex, time=${timeTakenMs}ms')),
-                    );
-                  },
-                  icon: const Icon(Icons.close),
-                  label: const Text('Simulate Wrong'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(150, 44),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // 额外显示：本地状态（可选，用于调试）
-            Builder(builder: (_) {
-              // 试着读取 controller 内部的状态数组（如果尚未初始化，使用 fallback）
-              final selfFinish = (notifier.self_finish.length > questionIndex)
-                  ? notifier.self_finish[questionIndex]
-                  : false;
-              final oppFinish = (notifier.opp_finish.length > questionIndex)
-                  ? notifier.opp_finish[questionIndex]
-                  : false;
-              return Text('本端已提交: ${selfFinish ? "是" : "否"}    对方已提交: ${oppFinish ? "是" : "否"}');
-            }),
           ],
         ),
       ),

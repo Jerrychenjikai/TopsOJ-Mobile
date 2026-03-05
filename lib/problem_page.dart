@@ -15,8 +15,15 @@ import "package:TopsOJ/login_page.dart";
 // 题目页面
 class ProblemPage extends StatefulWidget {
   final String problemId;
+  final bool isEmbedded; // 是否作为嵌入组件（默认为false，表示独立页面）
+  final Function(bool passed)? onSubmitResult; // 提交结果回调函数（passed表示是否正确）
 
-  const ProblemPage({super.key, required this.problemId});
+  const ProblemPage({
+    super.key, 
+    required this.problemId,
+    this.isEmbedded = false,
+    this.onSubmitResult,
+  });
 
   @override
   State<ProblemPage> createState() => _ProblemPageState();
@@ -109,6 +116,11 @@ class _ProblemPageState extends State<ProblemPage> {
         await record(widget.problemId, 'correct', '${true}');
       }
 
+      // 调用外部传入的回调函数（如果存在）
+      if (widget.onSubmitResult != null) {
+        widget.onSubmitResult!(passed);
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(passed ? 'Your answer is correct' : 'Your answer is incorrect')),
       );
@@ -120,6 +132,10 @@ class _ProblemPageState extends State<ProblemPage> {
         if(await is_cached(widget.problemId)){
           await record(widget.problemId, 'answer', answer);
           response = {'statusCode': -2, 'data': 'You are offline. Answer recorded in cache'};
+          // 在离线记录答案时，视作提交失败，调用回调并传递false
+          if (widget.onSubmitResult != null) {
+            widget.onSubmitResult!(false);
+          }
         }
       }
       if(response['statusCode'] == 401){
@@ -130,6 +146,10 @@ class _ProblemPageState extends State<ProblemPage> {
           ? '${response['data']}'
           : 'Submission failed: ${response['statusCode']} ${response['data']}')),
       );
+      // 在提交失败时，也调用回调并传递false
+      if (widget.onSubmitResult != null) {
+        widget.onSubmitResult!(false);
+      }
     }
   }
 
@@ -278,10 +298,12 @@ class _ProblemPageState extends State<ProblemPage> {
       future: _loadProblemData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return Scaffold(
-            appBar: AppBar(title: const Text("Loading...")),
-            body: const Center(child: CircularProgressIndicator()),
-          );
+          return widget.isEmbedded
+              ? const Center(child: CircularProgressIndicator()) // 嵌入时只显示加载指示器
+              : Scaffold(
+                  appBar: AppBar(title: const Text("Loading...")),
+                  body: const Center(child: CircularProgressIndicator()),
+                );
         }
         // Use _parseContent to build the content
         final content = ListView(
@@ -289,111 +311,119 @@ class _ProblemPageState extends State<ProblemPage> {
           children: _rendered,
         );
 
-        return WillPopScope(onWillPop: ()async{
-            Navigator.pop(context, true); // 手动传回是否需要刷新
-            return false; // 阻止默认返回行为（因为我们手动pop了）
-          },
-          child: Scaffold(
-            appBar: AppBar(
-              title: Row(
+        // 构建主体内容（不包含Scaffold/AppBar的部分）
+        final bodyContent = Column(
+          children: [
+            Expanded(child: content),
+            if(!_isCached & _successfully_loaded) 
+              ElevatedButton(
+                onPressed: () async {
+                  setState(() async {
+                    await cache(widget.problemId, _problemName, _markdownData, _nxt, _prev);
+                    _isCached=true;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Problem Cached')),
+                  );
+                },
+                child: const Text('Cache this problem'),
+              ),
+            if ((_canPrev || _canNxt) && !widget.isEmbedded)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (_canPrev)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => ProblemPage(problemId: _prev),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text("Previous"),
+                      ),
+                    if (_canNxt)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => ProblemPage(problemId: _nxt),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text("Next"),
+                      ),
+                  ],
+                ),
+              ),
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      _problemName,
-                      style: const TextStyle(fontSize: 22),
-                      overflow: TextOverflow.ellipsis,
+                    child: TextField(
+                      controller: _controller,
+                      decoration: const InputDecoration(
+                        hintText: 'Answer',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onSubmitted: (value){
+                        _submit();
+                      },
                     ),
                   ),
-                  if (_isSolved)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(Icons.check, color: Colors.green, size: 24),
-                    ),
+                  const SizedBox(width: 10),
+                  FloatingActionButton(
+                    onPressed: _submit,
+                    tooltip: 'Submit',
+                    child: const Icon(Icons.send),
+                    mini: true,
+                  ),
                 ],
               ),
             ),
-            body: Column(
-              children: [
-
-                Expanded(child: content),
-                if(!_isCached & _successfully_loaded) 
-                  ElevatedButton(
-                    onPressed: () async {
-                      setState(() async {
-                        await cache(widget.problemId, _problemName, _markdownData, _nxt, _prev);
-                        _isCached=true;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Problem Cached')),
-                      );
-                    },
-                    child: const Text('Cache this problem'),
-                  ),
-                if (_canPrev || _canNxt)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        if (_canPrev)
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => ProblemPage(problemId: _prev),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.arrow_back),
-                            label: const Text("Previous"),
-                          ),
-                        if (_canNxt)
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => ProblemPage(problemId: _nxt),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.arrow_forward),
-                            label: const Text("Next"),
-                          ),
-                      ],
-                    ),
-                  ),
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          decoration: const InputDecoration(
-                            hintText: 'Answer',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          onSubmitted: (value){
-                            _submit();
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      FloatingActionButton(
-                        onPressed: _submit,
-                        tooltip: 'Submit',
-                        child: const Icon(Icons.send),
-                        mini: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         );
+
+        // 根据isEmbedded决定是否包裹Scaffold和AppBar
+        if (widget.isEmbedded) {
+          return bodyContent; // 嵌入时直接返回主体内容
+        } else {
+          return WillPopScope(
+            onWillPop: () async {
+              Navigator.pop(context, true); // 手动传回是否需要刷新
+              return false; // 阻止默认返回行为（因为我们手动pop了）
+            },
+            child: Scaffold(
+              appBar: AppBar(
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _problemName,
+                        style: const TextStyle(fontSize: 22),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_isSolved)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Icon(Icons.check, color: Colors.green, size: 24),
+                      ),
+                  ],
+                ),
+              ),
+              body: bodyContent,
+            ),
+          );
+        }
       },
     );
   }
