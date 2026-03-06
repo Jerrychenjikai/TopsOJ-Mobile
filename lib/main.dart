@@ -48,6 +48,10 @@ class TopsOJ extends StatelessWidget {
           surfaceTintColor: Colors.transparent, // 额外保险，防止 tint 染色（强烈推荐）
           shadowColor: Colors.transparent,
         ),
+        textTheme: Theme.of(context).textTheme.apply(
+          bodyColor: Colors.black,
+          displayColor: Colors.black,
+        ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,          // 預設改成 floating
           shape: RoundedRectangleBorder(                // 可選：更好看

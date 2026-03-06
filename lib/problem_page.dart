@@ -238,7 +238,7 @@ class _ProblemPageState extends State<ProblemPage> {
             scrollDirection: Axis.horizontal,
             child: Math.tex(
               match.group(1)!,
-              textStyle: const TextStyle(color: Colors.black87, fontSize: 24),
+              textStyle: TextStyle(color: widget.isEmbedded ? Colors.white : Colors.black87, fontSize: 24),
             ),
           ),
         ),
@@ -252,6 +252,7 @@ class _ProblemPageState extends State<ProblemPage> {
   }
 
   List<Widget> _processInlineMath(String text) {
+    var embedded = widget.isEmbedded;
     final widgets = <Widget>[];
     // Support inline math with newlines via dotAll
     final regexInline = RegExp(r'\$(.+?)\$', dotAll: true);
@@ -262,7 +263,7 @@ class _ProblemPageState extends State<ProblemPage> {
       if (match.start > lastEnd) {
         spans.add(TextSpan(
           text: text.substring(lastEnd, match.start),
-          style: const TextStyle(color: Colors.black87, fontSize: 20),
+          style: TextStyle(color: embedded ? Colors.white : Colors.black87, fontSize: 20),
         ));
       }
       spans.add(WidgetSpan(
@@ -271,7 +272,7 @@ class _ProblemPageState extends State<ProblemPage> {
           fit: BoxFit.scaleDown,
           child: Math.tex(
             match.group(1)!.trim(),
-            textStyle: const TextStyle(color: Colors.black87, fontSize: 20),
+            textStyle: TextStyle(color: embedded ? Colors.white : Colors.black87, fontSize: 20),
           ),
         ),
       ));
@@ -280,7 +281,7 @@ class _ProblemPageState extends State<ProblemPage> {
     if (lastEnd < text.length) {
       spans.add(TextSpan(
         text: text.substring(lastEnd),
-        style: const TextStyle(color: Colors.black87, fontSize: 20),
+        style: TextStyle(color: widget.isEmbedded ? Colors.white : Colors.black87, fontSize: 20),
       ));
     }
     widgets.add(
@@ -362,7 +363,6 @@ class _ProblemPageState extends State<ProblemPage> {
                 ),
               ),
             Container(
-              color: Colors.white,
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [

@@ -54,6 +54,8 @@ class BattleController extends StateNotifier<BattleState> {
   BluetoothCharacteristic? deviceIdChar; // 可选保留，如果后续GATT需要
   final Uuid _uuid = const Uuid();
 
+  bool _alreadyStopped = false;
+
   final Guid serviceUuid = Guid('05216c6d-7508-44c5-ae43-55cc4d06cbef');
   final Guid charUuid = Guid('12345678-1234-5678-1234-567812345678'); // 自定义char UUID
 
@@ -595,15 +597,24 @@ class BattleController extends StateNotifier<BattleState> {
     state = Result(my, peer);
   }
 
-  Future<void> reset() async {
+  // 立即同步的清理（供 dispose 调用）
+  void stopSync() {
+    if (_alreadyStopped) return;
+    _alreadyStopped = true;
     _notifSub?.cancel();
     _notifSub = null;
     _scanSub?.cancel();
     _scanSub = null;
+    // 调用 stopScan() 不 await（或使用 catchError）
+    FlutterBluePlus.stopScan().catchError((e) => print('stopScan err $e'));
+    // 不依赖 ref/context
+  }
+
+  Future<void> reset() async {
+    stopSync();
 
     peerCentralId = null;
 
-    FlutterBluePlus.stopScan().catchError((e) => print('Stop scan error: $e'));
     ble_peri.BlePeripheral.stopAdvertising().catchError((e) => print('Stop adv error: $e'));
     peerDevice?.disconnect().catchError((e) => print('Disconnect error: $e'));
 
@@ -633,9 +644,15 @@ class BattleController extends StateNotifier<BattleState> {
   }
 }
 
-final battleProvider =
-    StateNotifierProvider<BattleController, BattleState>(
-        (ref) => BattleController());
+final battleProvider = StateNotifierProvider<BattleController, BattleState>((ref) {
+  final controller = BattleController();
+  ref.onDispose(() {
+    // provider 被销毁时清理（可以调用同步或异步安全方法）
+    controller.stopSync();
+    unawaited(controller.reset());
+  });
+  return controller;
+});
 
 class BattlePage extends StatelessWidget {
   const BattlePage ({super.key});
@@ -656,9 +673,13 @@ class BattleEntry extends ConsumerStatefulWidget {  // 改成 Stateful
 }
 
 class _BattleEntryState extends ConsumerState<BattleEntry> {
+  late final BattleController _battleCtrl;
+
   @override
   void initState() {
     super.initState();
+    _battleCtrl = ref.read(battleProvider.notifier);
+    ref.listen<BattleState>(battleProvider, (previous, next) {});
     _jumpIfNoLogin();
   }
 
@@ -674,7 +695,8 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
   @override
   void dispose() {
     // 调用 BattleController 的 reset() 方法
-    ref.read(battleProvider.notifier).reset();
+    _battleCtrl.reset();
+    unawaited(_battleCtrl.reset());
 
     print("page exited, bluetooth scanning stopped");
     super.dispose();
@@ -693,27 +715,122 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
       });
     };
 
-    return Scaffold(
-      // 加上 AppBar
-      appBar: AppBar(
-        title: const Text("Math PvP"),
-        centerTitle: true,
-        elevation: 2,
+    // 定义主题颜色，作为全局主题应用于整个BattleEntry及其子View
+    // 这允许所有页面（通过AnimatedSwitcher切换）继承相同的风格
+    final battleTheme = Theme.of(context).copyWith(
+      scaffoldBackgroundColor: Colors.blue,
+
+      // 重点修改 colorScheme，让输入文本默认黑色
+      colorScheme: ColorScheme.dark(  // 推荐用 ColorScheme.dark() 作为基础
+        primary: Colors.orangeAccent,
+        onPrimary: Colors.white,
+        secondary: Colors.orangeAccent,
+        onSecondary: Colors.white,
+        surface: Colors.blue.shade800,           // 卡片/表面可能的背景
+        onSurface: Colors.white,                 // ← 这里！输入文本默认颜色设为黑色
+        onSurfaceVariant: Colors.black87,        // hint / 次要文字也黑色
+        brightness: Brightness.dark,
+      ).copyWith(
+        // 如果需要覆盖某些地方的白色，可以再细调
       ),
-      
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: switch (state) {
-            Idle() => const IdleView(),
-            Scanning() => const ScanningView(),
-            Connecting() => const ConnectingView(),
-            Ready() => const ReadyView(),
-            Playing(:final currentQuestionId) =>
-                PlayingView(questionIndex: currentQuestionId),
-            Result(:final myScore, :final peerScore) =>
-                ResultView(myScore: myScore, peerScore: peerScore),
-          },
+
+      inputDecorationTheme: InputDecorationTheme(
+        filled: false,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.orangeAccent.withOpacity(0.6)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.orangeAccent, width: 2.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.orangeAccent, width: 2.5),
+        ),
+        // hint 文字颜色（黑色）
+        hintStyle: const TextStyle(
+          color: Colors.white,   // 稍淡的黑色，更像典型 hint
+          fontSize: 16,
+        ),
+        // label 颜色（如果有 floating label）
+        labelStyle: const TextStyle(
+          color: Colors.black87,
+        ),
+        // 前/后缀图标颜色
+        prefixIconColor: Colors.orangeAccent,
+        suffixIconColor: Colors.orangeAccent,
+        //cursorColor: Colors.orangeAccent,
+      ),
+
+      // 其他部分不变
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: Colors.orangeAccent,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        highlightElevation: 12,
+      ),
+
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orangeAccent,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 5,
+        ),
+      ),
+
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(color: Colors.white, fontSize: 18),
+        bodyMedium: TextStyle(color: Colors.white, fontSize: 16),
+        headlineSmall: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+      ),
+
+      cardTheme: CardThemeData(
+        color: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(
+            color: Colors.orangeAccent,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+
+    return Theme(
+      data: battleTheme,
+      child: Scaffold(
+        // 加上 AppBar，并应用主题
+        appBar: AppBar(
+          title: const Text("Math PvP"),
+          centerTitle: true,
+          elevation: 2,
+          backgroundColor: Colors.blue, // 与背景一致或调整为撞色
+          titleTextStyle: battleTheme.textTheme.headlineSmall?.copyWith(color: Colors.white),
+        ),
+        
+        body: SafeArea(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300), // 页面切换过渡动画
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              // 添加淡入淡出过渡动画以增强切换效果
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: switch (state) {
+              Idle() => const IdleView(),
+              Scanning() => const ScanningView(),
+              Connecting() => const ConnectingView(),
+              Ready() => const ReadyView(),
+              Playing(:final currentQuestionId) =>
+                  PlayingView(questionIndex: currentQuestionId),
+              Result(:final myScore, :final peerScore) =>
+                  ResultView(myScore: myScore, peerScore: peerScore),
+            },
+          ),
         ),
       ),
     );
@@ -725,23 +842,49 @@ class IdleView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Row(
-        children:[
-          ElevatedButton(
-            onPressed: () {
-              ref.read(battleProvider.notifier).startScan();
-            },
-            child: const Text("Idle- Start Scan"),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 活动说明Card，居中且醒目
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Text(
+                  "Math PvP Activity",
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Challenge your friend in a face-to-face math battle! Compete to see who solves problems faster and more accurately. Have fun and sharpen your math skills!",
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 30),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(battleProvider.notifier).startHost();
-            },
-            child: const Text("Idle- Start as host"),
-          ),
-        ],
-      ),
+        ),
+        ),
+        const SizedBox(height: 32),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly, // 按钮居中且均匀分布
+          children:[
+            ElevatedButton(
+              onPressed: () {
+                ref.read(battleProvider.notifier).startScan();
+              },
+              child: const Text("Start Scan"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(battleProvider.notifier).startHost();
+              },
+              child: const Text("Start as Host"),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -751,8 +894,21 @@ class ScanningView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ScanningView 继承 battleTheme
     return Center(
-      child: const Text("Scanning"),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator( // 添加加载指示器以匹配主题
+            color: Colors.orangeAccent,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Scanning for opponents...",
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -762,8 +918,21 @@ class ConnectingView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ConnectingView 继承 battleTheme
     return Center(
-      child: const Text("Device found. Connecting"),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            color: Colors.orangeAccent,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Device found. Connecting...",
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -783,49 +952,72 @@ class _ReadyViewState extends ConsumerState<ReadyView> {
     final notifier = ref.read(battleProvider.notifier);
     final isHost = notifier.isHost;
 
+    // ReadyView 继承 battleTheme，无需本地Theme
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(isHost ? "You are Host" : "You are Client"),
-          const SizedBox(height: 32),
-
-          if (isHost) ...[
-            Text("Please select number of problems:"),
-            const SizedBox(height: 10),
-            NumberPicker(
-              minValue: 1,
-              maxValue: 10,
-              value: _selectedQuestions,
-              step: 1,
-              itemHeight: 50,
-              selectedTextStyle: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-              textStyle: const TextStyle(fontSize: 20),
-              onChanged: (value) => setState(() => _selectedQuestions = value),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              isHost ? "You are Host" : "You are Client",
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-            const SizedBox(height: 24),
-          ] else ...[
-            Text("Waiting for Host to set number of problems..."),
-            const SizedBox(height: 40),
-          ],
+            const SizedBox(height: 32),
 
-          if (isHost)
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+            if (isHost) ...[
+              Text(
+                "Please select number of problems:",
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
-              onPressed: () {
-                notifier.initiateMatch(
-                  numQuestions: _selectedQuestions,
-                  pointInterval: 10, // used to filter problems but useless right now
-                );
-              },
-              child: const Text("Start Match", style: TextStyle(fontSize: 18)),
-            )
-        ],
+              const SizedBox(height: 10),
+              // NumberPicker 应用白色字体和撞色风格
+              NumberPicker(
+                minValue: 1,
+                maxValue: 10,
+                value: _selectedQuestions,
+                step: 1,
+                itemHeight: 50,
+                selectedTextStyle: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orangeAccent, // 选中项橙色突出
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 20,
+                  color: Colors.white, // 白色字体
+                ),
+                decoration: BoxDecoration(
+                  border: Border.symmetric(
+                    horizontal: BorderSide(color: Colors.orangeAccent, width: 2),
+                  ),
+                ),
+                onChanged: (value) => setState(() => _selectedQuestions = value),
+              ),
+              const SizedBox(height: 24),
+            ] else ...[
+              Text(
+                "Waiting for Host to set number of problems...",
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 40),
+            ],
+
+            if (isHost)
+              ElevatedButton(
+                onPressed: () {
+                  notifier.initiateMatch(
+                    numQuestions: _selectedQuestions,
+                    pointInterval: 10, // used to filter problems but useless right now
+                  );
+                },
+                child: const Text("Start Match"),
+              ),
+
+            // 如果是客户端，可以添加一个可选的取消按钮，但原代码无按钮，故不添加额外按钮
+          ],
+        ),
       ),
     );
   }
@@ -840,6 +1032,7 @@ class PlayingView extends ConsumerWidget {
     final notifier = ref.read(battleProvider.notifier);
     final problemIds = notifier.problem_ids;
 
+    // PlayingView 继承 battleTheme
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -850,19 +1043,19 @@ class PlayingView extends ConsumerWidget {
 
             // 显示题目
             Expanded(
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+              child: Card( // 应用主题卡片风格
                 clipBehavior: Clip.antiAlias, // 让内容跟随圆角裁剪
-                child: ProblemPage(
-                  problemId: problemIds[questionIndex],
-                  isEmbedded: true,
-                  onSubmitResult: (passed) async {
-                    print(problemIds[questionIndex]);
-                    final timeTakenMs = Random().nextInt(9000) + 1000;//TODO: measure time taken
-                    await notifier.sendAnswer(questionIndex, passed, timeTakenMs);
+                child: Builder( // 使用 Builder 来创建一个新的 context，确保 ProblemPage 继承外部的 battleTheme
+                  builder: (BuildContext innerContext) {
+                    return ProblemPage(
+                      problemId: problemIds[questionIndex],
+                      isEmbedded: true,
+                      onSubmitResult: (passed) async {
+                        print(problemIds[questionIndex]);
+                        final timeTakenMs = Random().nextInt(9000) + 1000;//TODO: measure time taken
+                        await notifier.sendAnswer(questionIndex, passed, timeTakenMs);
+                      },
+                    );
                   },
                 ),
               ),
@@ -881,11 +1074,16 @@ class ResultView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ResultView 继承 battleTheme
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text("My Score: $myScore, Peer Score: $peerScore"),
+          Text(
+            "My Score: $myScore, Peer Score: $peerScore",
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () {
               ref.read(battleProvider.notifier).reset();
