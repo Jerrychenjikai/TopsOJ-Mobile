@@ -69,7 +69,7 @@ class BattleController extends StateNotifier<BattleState> {
 
   // ==================== match data ====================
   List<String> problem_ids = [];
-  int numProblems = 0;
+  int numProblems = 0;//IMPORTANT: could not be greater than 10
   int current_problem_index = 0;
   List<bool> self_finish = [];
   List<bool> self_correct = [];
@@ -77,6 +77,7 @@ class BattleController extends StateNotifier<BattleState> {
   List<bool> opp_correct = [];
   List<int> self_time_taken = [];
   List<int> opp_time_taken = [];
+  int question_start_time = 0;
 
   // 统一发送（Host 用 notify，Client 用 writeWithResponse）
   Future<void> _sendMessage(Map<String, dynamic> payload) async {
@@ -98,6 +99,7 @@ class BattleController extends StateNotifier<BattleState> {
       }
     } catch (e) {
       print('❌ 发送失败: $e');
+      showSnackBar?.call('Failed to send message. Please quit this page and restart');
     }
   }
 
@@ -146,13 +148,16 @@ class BattleController extends StateNotifier<BattleState> {
       }
     } catch (e) {
       print('消息解析失败: $e');
+      showSnackBar?.call('Failed to analyze received message. Please quit this page and restart');
     }
   }
 
   // =================== 双方都需要用到的函数 ================
   // 双方给对方提交答案示例（在 PlayingView 的提交按钮里调用）
-  Future<void> sendAnswer(int qIndex, bool result, int timeTakenMs) async {
+  Future<void> sendAnswer(int qIndex, bool result) async {
     if(self_finish[qIndex]) return;
+
+    int timeTakenMs = DateTime.now().millisecondsSinceEpoch - question_start_time;
 
     self_finish[qIndex] = true;
     self_correct[qIndex] = result;
@@ -162,7 +167,6 @@ class BattleController extends StateNotifier<BattleState> {
       'qIndex': qIndex,//int
       'result': result,//bool: 做没做对
       'timeTakenMs': timeTakenMs,//int
-      'localSubmitTime': DateTime.now().millisecondsSinceEpoch,//host time
     });
 
     if (isHost && self_finish[current_problem_index] && opp_finish[current_problem_index]){
@@ -237,6 +241,7 @@ class BattleController extends StateNotifier<BattleState> {
     print('比赛开始！startAt=${data['startAt']}');
     current_problem_index = 0;
     state = const Playing(0);
+    question_start_time = DateTime.now().millisecondsSinceEpoch;
   }
 
   void handleNext(Map<String, dynamic> data) {
@@ -244,6 +249,7 @@ class BattleController extends StateNotifier<BattleState> {
     print('下一题: $idx');
     current_problem_index = idx;
     state = Playing(idx);
+    question_start_time = DateTime.now().millisecondsSinceEpoch;
   }
 
   void handleEnd(Map<String, dynamic> data) {
@@ -270,8 +276,27 @@ class BattleController extends StateNotifier<BattleState> {
 
   Future<void> handleAckMathInit() async {
     print('Client 已接受，开始准备题目...');
+
+    //接受题目
+    final jsonData = await fetchFilterProblems(
+      "",
+      "false",
+      '0',
+    );
+
+    if (jsonData['statusCode'] == 200) {
+      for(int i=0; i<numProblems; i++){
+        problem_ids.add(jsonData['data']['problems'][i]['id']);
+      }
+    } else {
+      showSnackBar?.call(
+        'Search Error: ${jsonData['statusCode']} ${jsonData['message']}'
+      );
+      reset();
+      return;
+    }
+    
     for(int i=0; i<numProblems; i++){
-      problem_ids.add('11_amc12A_p05');
       self_finish.add(false);
       self_correct.add(false);
       opp_finish.add(false);
@@ -297,6 +322,7 @@ class BattleController extends StateNotifier<BattleState> {
     await _sendMessage({'type': 'START'});
     current_problem_index = 0;
     state = const Playing(0);
+    question_start_time = DateTime.now().millisecondsSinceEpoch;
   }
 
   Future<void> sendNext(int qIndex) async {
@@ -304,14 +330,20 @@ class BattleController extends StateNotifier<BattleState> {
     current_problem_index = qIndex;
     state = Playing(qIndex);
     await _sendMessage({'type': 'NEXT', 'qIndex': qIndex});
+    question_start_time = DateTime.now().millisecondsSinceEpoch;
   }
 
   Future<void> sendEnd() async {
     if (!isHost) return;
 
     //TODO: calculate scores here based on correct and timetaken
-    final hostScore = 40;
-    final clientScore = 50;
+    int hostScore = 0;
+    int clientScore = 0;
+
+    for(int i=0;i<numProblems;i++){
+      hostScore += (self_correct[i] ? 1 : 0) * (10 + max(0, 5-(self_time_taken[i]/1000)).toInt());
+      clientScore += (opp_correct[i] ? 1 : 0) * (10 + max(0, 5-(opp_time_taken[i]/1000)).toInt());
+    }
 
     finish(hostScore, clientScore);
 
@@ -328,6 +360,8 @@ class BattleController extends StateNotifier<BattleState> {
         await Permission.bluetoothAdvertise.request().isDenied ||
         await Permission.bluetoothConnect.request().isDenied) {
       print('Bluetooth permissions denied');
+      showSnackBar?.call('Please grant bluetooth permission');
+      reset();
       return;
     }
 
@@ -336,6 +370,8 @@ class BattleController extends StateNotifier<BattleState> {
       if (androidInfo.version.sdkInt <= 30) {
         if (await Permission.location.request().isDenied) {
           print('Location permissions denied');
+          showSnackBar?.call('Please turn on location');
+        reset();
           return;
         }
       }
@@ -344,6 +380,8 @@ class BattleController extends StateNotifier<BattleState> {
     final isOn = await FlutterBluePlus.isOn;
     if (!isOn) {
       print('Bluetooth is off');
+      showSnackBar?.call('Please turn on bluetooth');
+      reset();
       return;
     }
 
@@ -383,6 +421,7 @@ class BattleController extends StateNotifier<BattleState> {
           onDeviceFound(null);
         } else {
           print('Disconnected');
+          showSnackBar?.call('Disconnected');
           reset();
         }
       });
@@ -395,6 +434,7 @@ class BattleController extends StateNotifier<BattleState> {
           onDeviceFound(null);
         } else if (!subscribed) {
           print('Central unsubscribed (disconnected?)');
+          showSnackBar?.call('Client is disconnected');
           reset();
         }
       });
@@ -434,6 +474,7 @@ class BattleController extends StateNotifier<BattleState> {
       print('Advertising started');
     } catch (e) {
       print('Advertising failed: $e');
+      showSnackBar?.call('Failed to start bluetooth advertising');
       reset();
     }
 
@@ -448,6 +489,8 @@ class BattleController extends StateNotifier<BattleState> {
         await Permission.bluetoothAdvertise.request().isDenied ||
         await Permission.bluetoothConnect.request().isDenied) {
       print('Bluetooth permissions denied');
+      showSnackBar?.call('Please grant bluetooth permission');
+      reset();
       return;
     }
 
@@ -456,6 +499,8 @@ class BattleController extends StateNotifier<BattleState> {
       if (androidInfo.version.sdkInt <= 30) {
         if (await Permission.location.request().isDenied) {
           print('Location permissions denied');
+          showSnackBar?.call('Please turn on location');
+          reset();
           return;
         }
       }
@@ -464,6 +509,8 @@ class BattleController extends StateNotifier<BattleState> {
     final isOn = await FlutterBluePlus.isOn;
     if (!isOn) {
       print('Bluetooth is off');
+      showSnackBar?.call('Please turn on bluetooth');
+      reset();
       return;
     }
 
@@ -498,9 +545,7 @@ class BattleController extends StateNotifier<BattleState> {
 
           // 直接连接（移除交换逻辑）
           peerDevice = r.device;
-          print(1);
           try {
-            print(2);
             await peerDevice!.connect(
               license: License.free,
               timeout: const Duration(seconds: 10),
@@ -525,6 +570,7 @@ class BattleController extends StateNotifier<BattleState> {
               });
             } catch (e) {
               print('Subscription failed: $e');
+              showSnackBar?.call('Connection failed');
               reset();
               return;
             }
@@ -533,6 +579,7 @@ class BattleController extends StateNotifier<BattleState> {
             await onDeviceFound(peerDevice!);
           } catch (e) {
             print('Connection failed: $e');
+            showSnackBar?.call('Connection failed');
             reset();
           }
         }
@@ -573,6 +620,7 @@ class BattleController extends StateNotifier<BattleState> {
         }
       } catch (e) {
         print('Connection state check failed: $e');
+        showSnackBar?.call('Connection failed');
         reset();
       }
 
@@ -583,6 +631,7 @@ class BattleController extends StateNotifier<BattleState> {
           // Handle reconnects if needed
         } else if (bluetoothState == BluetoothConnectionState.disconnected) {
           print('Disconnected');
+          showSnackBar?.call('disconnected');
           reset();
         }
       });
@@ -636,6 +685,7 @@ class BattleController extends StateNotifier<BattleState> {
     opp_correct = [];
     self_time_taken = [];
     opp_time_taken = [];
+    question_start_time = 0;
     showSnackBar = null; // 清空 SnackBar 回调
 
     // 延迟以确保蓝牙栈稳定
@@ -975,7 +1025,7 @@ class _ReadyViewState extends ConsumerState<ReadyView> {
               // NumberPicker 应用白色字体和撞色风格
               NumberPicker(
                 minValue: 1,
-                maxValue: 10,
+                maxValue: 10,//IMPORTANT: could not be greater than 10
                 value: _selectedQuestions,
                 step: 1,
                 itemHeight: 50,
@@ -1051,9 +1101,7 @@ class PlayingView extends ConsumerWidget {
                       problemId: problemIds[questionIndex],
                       isEmbedded: true,
                       onSubmitResult: (passed) async {
-                        print(problemIds[questionIndex]);
-                        final timeTakenMs = Random().nextInt(9000) + 1000;//TODO: measure time taken
-                        await notifier.sendAnswer(questionIndex, passed, timeTakenMs);
+                        await notifier.sendAnswer(questionIndex, passed);
                       },
                     );
                   },

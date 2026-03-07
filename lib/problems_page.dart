@@ -46,20 +46,14 @@ class _ProblemsState extends ConsumerState<Problems> {
       }
     }
 
-    var url = Uri.parse('https://topsoj.com/api/problems');
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? apiKey = prefs.getString('apiKey');
+    final jsonData = await fetchFilterProblems(
+      _problemIdController.text.trim(),
+      solvelist[_solved],
+      '${_page}',
+    );
 
-    var headers = {'Authorization': 'Bearer $apiKey'};
-    var response = await http.post(url, headers: headers, body: {
-      'page': '${_page}',
-      'title': _problemIdController.text.trim(),
-      'solved': solvelist[_solved],
-    });
-    final jsonData = jsonDecode(response.body);
-    if (response.statusCode == 200) {
+    if (jsonData['statusCode'] == 200) {
       setState(() {
-        //jsonData['data']['solved']=['nt1'];
         _problem_ids = jsonData['data']['problems'];
         _problems_cnt = jsonData['data']['length'][0]['cnt'];
       });
@@ -67,7 +61,7 @@ class _ProblemsState extends ConsumerState<Problems> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Search Error: ${response.statusCode} ${jsonData['message']}'),
+          content: Text('Search Error: ${jsonData['statusCode']} ${jsonData['message']}'),
           backgroundColor: Colors.redAccent,
         ),
       );

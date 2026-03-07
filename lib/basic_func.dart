@@ -90,6 +90,23 @@ Future<Map<String, dynamic>> login(String username, String password) async {
   }
 }
 
+Future<Map<String, dynamic>> fetchFilterProblems(String? title, String? solved, String? page) async {
+  var url = Uri.parse('https://topsoj.com/api/problems');
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? apiKey = prefs.getString('apiKey');
+
+  var headers = {'Authorization': 'Bearer $apiKey'};
+  var response = await http.post(url, headers: headers, body: {
+    'page': page ?? '0',
+    'title': title ?? '',
+    'solved': solved ?? 'none',
+  });
+  var jsonData = jsonDecode(response.body);
+  jsonData['statusCode'] = response.statusCode;
+  
+  return jsonData;
+}
+
 Future<Map<String, dynamic>> submitProblem(String problemId, String answer) async {
     var url = Uri.parse('https://topsoj.com/api/submitproblem');
     SharedPreferences prefs = await SharedPreferences.getInstance();
