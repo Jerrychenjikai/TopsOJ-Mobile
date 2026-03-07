@@ -285,6 +285,12 @@ class BattleController extends StateNotifier<BattleState> {
     );
 
     if (jsonData['statusCode'] == 200) {
+      if(jsonData['data']['problems'].length < numProblems){
+        showSnackBar?.call(
+          'problem filter error: only ${jsonData['data']['problems'].length} questions satisfy your filter'
+        );
+        return;
+      }
       for(int i=0; i<numProblems; i++){
         problem_ids.add(jsonData['data']['problems'][i]['id']);
       }
