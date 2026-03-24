@@ -186,6 +186,11 @@ class GameNotifier extends StateNotifier<GameState> {
       } else {
         debugPrint(
             'submit-time failed: ${response.statusCode} - ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(
+            'submit-time failed: ${response.statusCode} - ${response.body}'
+          )),
+        );
         // 根据需要可以在 UI 上提示用户或重试（此处只打印）
       }
     } catch (e, st) {

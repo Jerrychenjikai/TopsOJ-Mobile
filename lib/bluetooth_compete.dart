@@ -68,6 +68,7 @@ class BattleController extends StateNotifier<BattleState> {
   void Function(String message)? showSnackBar;
 
   // ==================== match data ====================
+  // don't forget to add all of these to reset
   List<String> problem_ids = [];
   int numProblems = 0;//IMPORTANT: could not be greater than 10
   int current_problem_index = 0;
@@ -78,10 +79,11 @@ class BattleController extends StateNotifier<BattleState> {
   List<int> self_time_taken = [];
   List<int> opp_time_taken = [];
   int question_start_time = 0;
+  int maxFilterPoints = 10;
 
   // 统一发送（Host 用 notify，Client 用 writeWithResponse）
   Future<void> _sendMessage(Map<String, dynamic> payload) async {
-    await Future.delayed(Duration(milliseconds: 100));
+    await Future.delayed(Duration(milliseconds: 300));
     final jsonStr = jsonEncode(payload);
     final data = Uint8List.fromList(utf8.encode(jsonStr));
 
@@ -190,7 +192,7 @@ class BattleController extends StateNotifier<BattleState> {
       return;
     }
 
-    showSnackBar?.call('对手已提交：第 $qIndex 题 — $result （${timeTaken ?? 0} ms）');
+    showSnackBar?.call('Opponent submitted question #$qIndex — $result (${timeTaken ?? 0} ms)');
 
     opp_finish[qIndex] = true;
     opp_correct[qIndex] = result;
@@ -260,17 +262,18 @@ class BattleController extends StateNotifier<BattleState> {
   // ==================== Host的收/发消息的函数 ====================
   Future<void> initiateMatch({
     required int numQuestions,
-    required int pointInterval,
+    required int maxPoints,
   }) async {
     if (!isHost) return;
     final matchToken = _uuid.v4();
     numProblems = numQuestions;
+    maxFilterPoints = maxPoints;
     await _sendMessage({
       'type': 'MATCH_INIT',
-      'hostUid': '你的hostUid', // 从登录拿
+      //'hostUid': '你的hostUid', // 从登录拿
       'numQuestions': numQuestions,
-      'pointInterval': pointInterval,
-      'matchToken': matchToken,
+      'maxPoints': maxPoints,
+      //'matchToken': matchToken,
     });
   }
 
@@ -281,13 +284,15 @@ class BattleController extends StateNotifier<BattleState> {
     final jsonData = await fetchFilterProblems(
       "",
       "false",
-      '0',
+      '1',
+      maxFilterPoints.toString(),
+      '1',
     );
 
     if (jsonData['statusCode'] == 200) {
       if(jsonData['data']['problems'].length < numProblems){
         showSnackBar?.call(
-          'problem filter error: only ${jsonData['data']['problems'].length} questions satisfy your filter'
+          'Only ${jsonData['data']['problems'].length} questions satisfy your filter. Change filter and try again.'
         );
         return;
       }
@@ -296,9 +301,9 @@ class BattleController extends StateNotifier<BattleState> {
       }
     } else {
       showSnackBar?.call(
-        'Search Error: ${jsonData['statusCode']} ${jsonData['message']}'
+        'Search Error: ${jsonData['statusCode']} ${jsonData['message']}. Please try again'
       );
-      reset();
+      //reset();
       return;
     }
     
@@ -377,7 +382,7 @@ class BattleController extends StateNotifier<BattleState> {
         if (await Permission.location.request().isDenied) {
           print('Location permissions denied');
           showSnackBar?.call('Please turn on location');
-        reset();
+          reset();
           return;
         }
       }
@@ -692,6 +697,7 @@ class BattleController extends StateNotifier<BattleState> {
     self_time_taken = [];
     opp_time_taken = [];
     question_start_time = 0;
+    maxFilterPoints = 10;
     showSnackBar = null; // 清空 SnackBar 回调
 
     // 延迟以确保蓝牙栈稳定
@@ -1002,6 +1008,8 @@ class ReadyView extends ConsumerStatefulWidget {
 
 class _ReadyViewState extends ConsumerState<ReadyView> {
   int _selectedQuestions = 5; // 默认5题
+  int _maxPoints = 10;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -1023,35 +1031,76 @@ class _ReadyViewState extends ConsumerState<ReadyView> {
             const SizedBox(height: 32),
 
             if (isHost) ...[
-              Text(
-                "Please select number of problems:",
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 10),
-              // NumberPicker 应用白色字体和撞色风格
-              NumberPicker(
-                minValue: 1,
-                maxValue: 10,//IMPORTANT: could not be greater than 10
-                value: _selectedQuestions,
-                step: 1,
-                itemHeight: 50,
-                selectedTextStyle: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orangeAccent, // 选中项橙色突出
+              Row(children: [
+                Expanded(child:
+                  Column(children: [
+                    Text(
+                      "Please select number of problems:",
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 10),
+                    // NumberPicker 应用白色字体和撞色风格
+                    NumberPicker(
+                      minValue: 1,
+                      maxValue: 10,//IMPORTANT: could not be greater than 10
+                      value: _selectedQuestions,
+                      step: 1,
+                      itemHeight: 50,
+                      selectedTextStyle: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orangeAccent, // 选中项橙色突出
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 20,
+                        color: Colors.white, // 白色字体
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.symmetric(
+                          horizontal: BorderSide(color: Colors.orangeAccent, width: 2),
+                        ),
+                      ),
+                      onChanged: (value) => setState(() => _selectedQuestions = value),
+                    ),
+                  ],),
                 ),
-                textStyle: const TextStyle(
-                  fontSize: 20,
-                  color: Colors.white, // 白色字体
+
+                const SizedBox(width: 10),
+
+                Expanded(child:
+                  Column(children: [
+                    Text(
+                      "Please select max point value:",
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 10),
+                    // NumberPicker 应用白色字体和撞色风格
+                    NumberPicker(
+                      minValue: 1,
+                      maxValue: 10,
+                      value: _maxPoints,
+                      step: 1,
+                      itemHeight: 50,
+                      selectedTextStyle: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orangeAccent, // 选中项橙色突出
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 20,
+                        color: Colors.white, // 白色字体
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.symmetric(
+                          horizontal: BorderSide(color: Colors.orangeAccent, width: 2),
+                        ),
+                      ),
+                      onChanged: (value) => setState(() => _maxPoints = value),
+                    ),
+                  ],),
                 ),
-                decoration: BoxDecoration(
-                  border: Border.symmetric(
-                    horizontal: BorderSide(color: Colors.orangeAccent, width: 2),
-                  ),
-                ),
-                onChanged: (value) => setState(() => _selectedQuestions = value),
-              ),
-              const SizedBox(height: 24),
+              ],),
+              const SizedBox(height: 24), 
             ] else ...[
               Text(
                 "Waiting for Host to set number of problems...",
@@ -1061,17 +1110,39 @@ class _ReadyViewState extends ConsumerState<ReadyView> {
             ],
 
             if (isHost)
-              ElevatedButton(
-                onPressed: () {
-                  notifier.initiateMatch(
-                    numQuestions: _selectedQuestions,
-                    pointInterval: 10, // used to filter problems but useless right now
-                  );
+            _isLoading
+              ? const CircularProgressIndicator()
+              : ElevatedButton(
+                onPressed: () async {
+                  setState(() => _isLoading = true);
+                  try {
+                    await notifier.initiateMatch(
+                      numQuestions: _selectedQuestions,
+                      maxPoints: _maxPoints,
+                    );
+                  } finally {
+                    await Future.delayed(Duration(seconds: 5));
+                    setState(() => _isLoading = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: 
+                        Row(children: [
+                          Expanded(child: Text("Connection unstable. Either start the match again or ->")),
+                          ElevatedButton(
+                            onPressed: () async {
+                              notifier.reset();
+                            },
+                            child: const Text("Back to Idle page"),
+                          ),
+                        ],),
+                      ),
+                    );
+                  }
                 },
                 child: const Text("Start Match"),
               ),
+              
 
-            // 如果是客户端，可以添加一个可选的取消按钮，但原代码无按钮，故不添加额外按钮
+          // 如果是客户端，可以添加一个可选的取消按钮，但原代码无按钮，故不添加额外按钮
           ],
         ),
       ),

@@ -20,6 +20,7 @@ class Problems extends ConsumerStatefulWidget {
 }
 
 class _ProblemsState extends ConsumerState<Problems> {
+  RangeValues _pointRange = const RangeValues(1, 10);
   double _splitRatio = 0.3;
   final TextEditingController _problemIdController = TextEditingController();
   int _page = 1;
@@ -50,6 +51,8 @@ class _ProblemsState extends ConsumerState<Problems> {
       _problemIdController.text.trim(),
       solvelist[_solved],
       '${_page}',
+      '${_pointRange.end.round()}',
+      '${_pointRange.start.round()}',
     );
 
     if (jsonData['statusCode'] == 200) {
@@ -185,30 +188,41 @@ class _ProblemsState extends ConsumerState<Problems> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _problemIdController,
-                              decoration: const InputDecoration(
-                                labelText: 'Enter Problem Name/ID',
-                                border: OutlineInputBorder(),
-                              ),
-                              onSubmitted: (value) {
+                      Row(children: [
+                        const Text("Filter by points: "),
+                        Expanded(child: 
+                          RangeSlider(
+                            min: 1,
+                            max: 10,
+                            divisions: 10,               // 可选：分成多少段（整数步长）
+                            labels: RangeLabels(
+                              _pointRange.start.round().toString(),
+                              _pointRange.end.round().toString(),
+                            ),
+                            values: _pointRange,
+                            onChanged: (RangeValues values) {
+                              setState(() {
+                                _pointRange = values;
                                 _page = 1;
                                 _getProblems();
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () {
-                              _page = 1;
-                              _getProblems();
+                              });
                             },
-                            child: const Icon(Icons.search),
                           ),
-                        ],
+                        ),
+                      ],),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _problemIdController,
+                          decoration: const InputDecoration(
+                            labelText: 'Enter Problem Name/ID',
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (value) {
+                            _page = 1;
+                            _getProblems();
+                          },
+                        ),
                       ),
                     ],
                   ),

@@ -90,7 +90,7 @@ Future<Map<String, dynamic>> login(String username, String password) async {
   }
 }
 
-Future<Map<String, dynamic>> fetchFilterProblems(String? title, String? solved, String? page) async {
+Future<Map<String, dynamic>> fetchFilterProblems(String? title, String? solved, String? page, String? maxPoints, String? minPoints) async {
   var url = Uri.parse('https://topsoj.com/api/problems');
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? apiKey = prefs.getString('apiKey');
@@ -100,6 +100,8 @@ Future<Map<String, dynamic>> fetchFilterProblems(String? title, String? solved, 
     'page': page ?? '0',
     'title': title ?? '',
     'solved': solved ?? 'none',
+    'maxPoints': maxPoints ?? '10',
+    'minPoints': minPoints ?? '1',
   });
   var jsonData = jsonDecode(response.body);
   jsonData['statusCode'] = response.statusCode;

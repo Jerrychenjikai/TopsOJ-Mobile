@@ -295,7 +295,7 @@ class _MainPageState extends ConsumerState<MainPage> {
             child: const Icon(Icons.sports_mma),
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
             foregroundColor: Colors.black,
-            label: 'Battle (under development)',
+            label: 'Math PvP',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => BattlePage()),
