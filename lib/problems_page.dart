@@ -194,7 +194,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                           RangeSlider(
                             min: 1,
                             max: 10,
-                            divisions: 10,               // 可选：分成多少段（整数步长）
+                            divisions: 9,               // 可选：分成多少段（整数步长）
                             labels: RangeLabels(
                               _pointRange.start.round().toString(),
                               _pointRange.end.round().toString(),

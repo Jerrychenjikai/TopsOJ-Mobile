@@ -15,9 +15,8 @@ Future<bool?> popLogin(BuildContext context) async {
     context: context,
     barrierDismissible: true,
     builder: (dialogContext) => ScaffoldMessenger(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: LoginPage(),
+      child: Builder(
+        builder: (innerContext) => const LoginPage(),
       ),
     ),
   );
@@ -34,13 +33,15 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _username = TextEditingController();
   final TextEditingController _password = TextEditingController();
 
+  String _msg = "";
+
   Future<void> _login() async {
     String username = _username.text.trim();
     String password = _password.text.trim();
     if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter username and password')),
-      );
+      setState((){
+        _msg = 'Please enter username and password';
+      });
       return;
     }
 
@@ -49,9 +50,9 @@ class _LoginPageState extends State<LoginPage> {
     final String? apiKey = result['apikey'];
 
     if (isValid != 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login Invalid: ${isValid.toString()}')),
-      );
+      setState((){
+        _msg = 'Login Invalid: ${isValid.toString()}';
+      });
       return;
     }
 
@@ -79,7 +80,11 @@ class _LoginPageState extends State<LoginPage> {
                 'LogIn',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 20),
+
+              const SizedBox(height: 10),
+              if(_msg != '') Text(_msg),
+              const SizedBox(height: 10),
+
               TextField(
                 controller: _username,
                 decoration: const InputDecoration(
@@ -97,30 +102,32 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _login,
-                      child: const Text('LogIn'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        launchURL(context, "https://topsoj.com/register");
-                      },
-                      child: const Text('Register'),
-                    ),
-                  ),
-                ],
+              // Login 按钮改为占满整行（全宽）
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _login,
+                  child: const Text('LogIn'),
+                ),
               ),
               
               const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),  // 取消
-                child: const Text('Cancel'),
+              // Register 改为和小 Cancel 一样的 TextButton，小字，放在右下角
+              // 使用 Row + spaceBetween，让 Cancel 在左、Register 在右下角
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),  // 取消
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      launchURL(context, "https://topsoj.com/register");
+                    },
+                    child: const Text('No account? Register'),
+                  ),
+                ],
               ),
             ],
           ),
