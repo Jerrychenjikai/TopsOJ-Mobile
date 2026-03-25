@@ -100,6 +100,9 @@ class _LoginPageState extends State<LoginPage> {
                   border: OutlineInputBorder(),
                   labelText: 'Password',
                 ),
+                onSubmitted: (value) {
+                  _login();
+                },
               ),
               const SizedBox(height: 24),
               // Login 按钮改为占满整行（全宽）
