@@ -13,7 +13,7 @@ import 'package:TopsOJ/cached_problem_page.dart';
 Future<bool?> popLogin(BuildContext context) async {
   return await showDialog<bool>(
     context: context,
-    barrierDismissible: true,
+    barrierDismissible: false,
     builder: (dialogContext) => ScaffoldMessenger(
       child: Builder(
         builder: (innerContext) => const LoginPage(),
