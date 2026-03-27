@@ -117,6 +117,9 @@ class BattleController extends StateNotifier<BattleState> {
       if (fromDeviceId != null) peerCentralId = fromDeviceId; // Host 记录对端
 
       switch (type) {
+        case 'CLIENT_READY'://client告诉host自己已经准备好了
+          if (isHost) handleClientReady(map);
+          break;
         case 'MATCH_INIT':
           if (!isHost) handleMatchInit(map);
           break;
@@ -260,6 +263,12 @@ class BattleController extends StateNotifier<BattleState> {
   }
 
   // ==================== Host的收/发消息的函数 ====================
+  Future<void> handleClientReady(Map<String, dynamic> data) async {
+    state = Ready();
+    print(data['username']);
+    //here display username
+  }
+
   Future<void> initiateMatch({
     required int numQuestions,
     required int maxPoints,
@@ -611,7 +620,6 @@ class BattleController extends StateNotifier<BattleState> {
     if (device == null) {
       // peripheral模式下处理（host）
       state = Connecting();
-      onReady();
       return;
     }
 
@@ -649,8 +657,11 @@ class BattleController extends StateNotifier<BattleState> {
     }
   }
 
-  void onReady() {
+  void onReady() async {
     state = Ready();
+    if(!isHost){
+      await _sendMessage({'type': 'CLIENT_READY', 'username': 'username'});//TODO: send actual username
+    }
   }
 
   void finish(int my, int peer) {
