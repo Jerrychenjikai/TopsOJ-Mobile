@@ -388,25 +388,27 @@ class BattleController extends StateNotifier<BattleState> {
   }
 
   Future<void> startHost() async {
-    if (await Permission.bluetooth.request().isDenied ||
-        await Permission.bluetoothScan.request().isDenied ||
-        await Permission.bluetoothAdvertise.request().isDenied ||
-        await Permission.bluetoothConnect.request().isDenied) {
-      print('Bluetooth permissions denied');
-      showSnackBar?.call('Please grant bluetooth permission');
-      reset();
-      return;
-    }
+    // iOS 保持原有 upfront 权限检查（request + isDenied）
+    if (!Platform.isAndroid) {
+      if (await Permission.bluetooth.request().isDenied ||
+          await Permission.bluetoothScan.request().isDenied ||
+          await Permission.bluetoothAdvertise.request().isDenied ||
+          await Permission.bluetoothConnect.request().isDenied) {
+        print('Bluetooth permissions denied');
+        showSnackBar?.call('Please grant bluetooth permission');
+        reset();
+        return;
+      }
+    } else {
+      // Android：只 request 触发系统弹窗，但**不做 isDenied upfront 判断**（解决假 deny 问题）
+      await Permission.bluetooth.request();
+      await Permission.bluetoothScan.request();
+      await Permission.bluetoothAdvertise.request();
+      await Permission.bluetoothConnect.request();
 
-    if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (androidInfo.version.sdkInt <= 30) {
-        if (await Permission.location.request().isDenied) {
-          print('Location permissions denied');
-          showSnackBar?.call('Please turn on location');
-          reset();
-          return;
-        }
+        await Permission.location.request();
       }
     }
 
@@ -418,97 +420,102 @@ class BattleController extends StateNotifier<BattleState> {
       return;
     }
 
-    // 初始化peripheral
-    await ble_peri.BlePeripheral.initialize();
-
-    // 添加服务和特性（保留原GATT结构，但移除交换逻辑）
-    await ble_peri.BlePeripheral.addService(
-      ble_peri.BleService(
-        uuid: serviceUuid.toString(),
-        primary: true,
-        characteristics: [
-          ble_peri.BleCharacteristic(
-            uuid: charUuid.toString(),
-            properties: [
-              ble_peri.CharacteristicProperties.read.index,
-              ble_peri.CharacteristicProperties.write.index,
-              ble_peri.CharacteristicProperties.notify.index,
-            ],
-            permissions: [
-              ble_peri.AttributePermissions.writeable.index,
-              ble_peri.AttributePermissions.readable.index,
-            ],
-            // 注意：**不要** 在这里传入 value（initial cached value），
-            // 否则 iOS CoreBluetooth 会报：Characteristics with cached values must be read-only
-          ),
-        ],
-      ),
-    );
-
-    // 设置连接状态监听（Android only）
-    if (Platform.isAndroid) {
-      ble_peri.BlePeripheral.setConnectionStateChangeCallback((remoteDeviceId, connected) {
-        print("connection detected - Android");
-        if (connected) {
-          print('Connected as peripheral by $remoteDeviceId (Android)');
-          onDeviceFound(null);
-        } else {
-          print('Disconnected');
-          showSnackBar?.call('Client is Disconnected');
-          reset();
-        }
-      });
-    } else {
-      // iOS: 使用订阅变化作为连接代理
-      ble_peri.BlePeripheral.setCharacteristicSubscriptionChangeCallback((remoteDeviceId, characteristicId, subscribed, centralId, [name]) {
-        print("connection detected - iOS");
-        if (subscribed && characteristicId == charUuid.toString()) {
-          print('Central subscribed to char from $remoteDeviceId (iOS)');
-          onDeviceFound(null);
-        } else if (!subscribed) {
-          print('Central unsubscribed (disconnected?)');
-          showSnackBar?.call('Client is disconnected');
-          reset();
-        }
-      });
-    }
-
-    // this is the function to cope with write requests
-    ble_peri.BlePeripheral.setWriteRequestCallback((String remoteDeviceId, String characteristicUuid, int offset, Uint8List? value) {
-      if (value != null && characteristicUuid == charUuid.toString()) {
-        _handleIncomingMessage(value, fromDeviceId: remoteDeviceId);
-      }
-      return ble_peri.WriteRequestResult(status: 0);
-    });
-
-    ble_peri.BlePeripheral.setReadRequestCallback(
-      (String remoteDeviceId, String characteristicUuid, int offset, Uint8List? value) {
-        print('Read request received:');
-        print('  from: $remoteDeviceId');
-        print('  char: $characteristicUuid');
-        print('  offset: $offset');
-        print('  value (should be null for read): $value');
-
-        // 返回成功响应（即使是空值也行，让 iOS 的自动 read 通过）
-        return ble_peri.ReadRequestResult(
-          value: Uint8List(0),   // 空字节数组
-          offset: offset,        // 通常保持原 offset
-          status: 0,             // 0 = GATT_SUCCESS
-        );
-      },
-    );
-
-    // Start advertising
+    // 把所有蓝牙外设操作（initialize → addService → set callbacks → startAdvertising）统一放入 try-catch
     try {
+      // 初始化peripheral
+      await ble_peri.BlePeripheral.initialize();
+
+      // 添加服务和特性（保留原GATT结构，但移除交换逻辑）
+      await ble_peri.BlePeripheral.addService(
+        ble_peri.BleService(
+          uuid: serviceUuid.toString(),
+          primary: true,
+          characteristics: [
+            ble_peri.BleCharacteristic(
+              uuid: charUuid.toString(),
+              properties: [
+                ble_peri.CharacteristicProperties.read.index,
+                ble_peri.CharacteristicProperties.write.index,
+                ble_peri.CharacteristicProperties.notify.index,
+              ],
+              permissions: [
+                ble_peri.AttributePermissions.writeable.index,
+                ble_peri.AttributePermissions.readable.index,
+              ],
+            ),
+          ],
+        ),
+      );
+
+      // 设置连接状态监听（Android only）
+      if (Platform.isAndroid) {
+        ble_peri.BlePeripheral.setConnectionStateChangeCallback((remoteDeviceId, connected) {
+          print("connection detected - Android");
+          if (connected) {
+            print('Connected as peripheral by $remoteDeviceId (Android)');
+            onDeviceFound(null);
+          } else {
+            print('Disconnected');
+            showSnackBar?.call('Client is Disconnected');
+            reset();
+          }
+        });
+      } else {
+        // iOS: 使用订阅变化作为连接代理
+        ble_peri.BlePeripheral.setCharacteristicSubscriptionChangeCallback((remoteDeviceId, characteristicId, subscribed, centralId, [name]) {
+          print("connection detected - iOS");
+          if (subscribed && characteristicId == charUuid.toString()) {
+            print('Central subscribed to char from $remoteDeviceId (iOS)');
+            onDeviceFound(null);
+          } else if (!subscribed) {
+            print('Central unsubscribed (disconnected?)');
+            showSnackBar?.call('Client is disconnected');
+            reset();
+          }
+        });
+      }
+
+      // this is the function to cope with write requests
+      ble_peri.BlePeripheral.setWriteRequestCallback((String remoteDeviceId, String characteristicUuid, int offset, Uint8List? value) {
+        if (value != null && characteristicUuid == charUuid.toString()) {
+          _handleIncomingMessage(value, fromDeviceId: remoteDeviceId);
+        }
+        return ble_peri.WriteRequestResult(status: 0);
+      });
+
+      ble_peri.BlePeripheral.setReadRequestCallback(
+        (String remoteDeviceId, String characteristicUuid, int offset, Uint8List? value) {
+          print('Read request received:');
+          print('  from: $remoteDeviceId');
+          print('  char: $characteristicUuid');
+          print('  offset: $offset');
+          print('  value (should be null for read): $value');
+
+          // 返回成功响应（即使是空值也行，让 iOS 的自动 read 通过）
+          return ble_peri.ReadRequestResult(
+            value: Uint8List(0),   // 空字节数组
+            offset: offset,        // 通常保持原 offset
+            status: 0,             // 0 = GATT_SUCCESS
+          );
+        },
+      );
+
+      // Start advertising
       await ble_peri.BlePeripheral.startAdvertising(
         services: [serviceUuid.toString()],
         localName: "TopsOJBG",
       );
       print('Advertising started');
     } catch (e) {
-      print('Advertising failed: $e');
-      showSnackBar?.call('Failed to start bluetooth advertising');
+      print('Bluetooth operation failed: $e');
+      if (Platform.isAndroid) {
+        // 安卓端改成“试图调用蓝牙失败”时才提醒
+        showSnackBar?.call('Please grant bluetooth permission');
+      } else {
+        showSnackBar?.call('Failed to start bluetooth advertising');
+      }
       reset();
+      return;
     }
 
     isHost = true;
@@ -516,26 +523,27 @@ class BattleController extends StateNotifier<BattleState> {
   }
 
   Future<void> startScan() async {
-    // Request permissions (原有)
-    if (await Permission.bluetooth.request().isDenied ||
-        await Permission.bluetoothScan.request().isDenied ||
-        await Permission.bluetoothAdvertise.request().isDenied ||
-        await Permission.bluetoothConnect.request().isDenied) {
-      print('Bluetooth permissions denied');
-      showSnackBar?.call('Please grant bluetooth permission');
-      reset();
-      return;
-    }
+    // iOS 保持原有 upfront 权限检查（request + isDenied）
+    if (!Platform.isAndroid) {
+      if (await Permission.bluetooth.request().isDenied ||
+          await Permission.bluetoothScan.request().isDenied ||
+          await Permission.bluetoothAdvertise.request().isDenied ||
+          await Permission.bluetoothConnect.request().isDenied) {
+        print('Bluetooth permissions denied');
+        showSnackBar?.call('Please grant bluetooth permission');
+        reset();
+        return;
+      }
+    } else {
+      // Android：只 request 触发系统弹窗，但**不做 isDenied upfront 判断**（解决假 deny 问题）
+      await Permission.bluetooth.request();
+      await Permission.bluetoothScan.request();
+      await Permission.bluetoothAdvertise.request();
+      await Permission.bluetoothConnect.request();
 
-    if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (androidInfo.version.sdkInt <= 30) {
-        if (await Permission.location.request().isDenied) {
-          print('Location permissions denied');
-          showSnackBar?.call('Please turn on location');
-          reset();
-          return;
-        }
+        await Permission.location.request();
       }
     }
 
@@ -550,74 +558,88 @@ class BattleController extends StateNotifier<BattleState> {
     isHost = false;
     state = Scanning();
 
-    // Start scanning
-    await FlutterBluePlus.startScan(
-      timeout: Duration(seconds: 30),
-      androidScanMode: AndroidScanMode.lowLatency,
-      androidUsesFineLocation: true,
-    );
+    // 把实际的扫描操作（startScan + 监听器设置）放入 try-catch
+    try {
+      // Start scanning
+      await FlutterBluePlus.startScan(
+        timeout: Duration(seconds: 30),
+        androidScanMode: AndroidScanMode.lowLatency,
+        androidUsesFineLocation: true,
+      );
 
-    // Listen to scan results
-    _scanSub = FlutterBluePlus.scanResults.listen((results) async {
-      for (ScanResult r in results) {
-        final adv = r.advertisementData;
-        print('''
-          === Device Found ===
-          Name: ${r.device.platformName}
-          LocalName: ${adv.localName}
-          Services: ${adv.serviceUuids}
-          Manufacturer Data: ${adv.manufacturerData}
-          TxPower: ${adv.txPowerLevel}
-          ''');
-        
-        if (adv.serviceUuids.contains(serviceUuid) ||
-            (adv.localName?.contains("TopsOJBG") ?? false)){
+      // Listen to scan results
+      _scanSub = FlutterBluePlus.scanResults.listen((results) async {
+        for (ScanResult r in results) {
+          final adv = r.advertisementData;
+          print('''
+            === Device Found ===
+            Name: ${r.device.platformName}
+            LocalName: ${adv.localName}
+            Services: ${adv.serviceUuids}
+            Manufacturer Data: ${adv.manufacturerData}
+            TxPower: ${adv.txPowerLevel}
+            ''');
           
-          await FlutterBluePlus.stopScan();
-          print("found someone: $r");
+          if (adv.serviceUuids.contains(serviceUuid) ||
+              (adv.localName?.contains("TopsOJBG") ?? false)){
+            
+            await FlutterBluePlus.stopScan();
+            print("found someone: $r");
 
-          // 直接连接（移除交换逻辑）
-          peerDevice = r.device;
-          try {
-            await peerDevice!.connect(
-              license: License.free,
-              timeout: const Duration(seconds: 10),
-              ).timeout(
-                const Duration(seconds: 12),
-                onTimeout: () => throw TimeoutException('Connect timeout after 12s'),
-              );
-            print('Connected as central');
-
-            // Discover services and char（保留，如果后续需要）
-            List<BluetoothService> services = await peerDevice!.discoverServices();
-            BluetoothService service = services.firstWhere((s) => s.uuid == serviceUuid);
-            deviceIdChar = service.characteristics.firstWhere((c) => c.uuid == charUuid);
-
+            // 直接连接（移除交换逻辑）
+            peerDevice = r.device;
             try {
-              await deviceIdChar!.setNotifyValue(true);
-              print('Subscribed to characteristic');
+              await peerDevice!.connect(
+                license: License.free,
+                timeout: const Duration(seconds: 10),
+                ).timeout(
+                  const Duration(seconds: 12),
+                  onTimeout: () => throw TimeoutException('Connect timeout after 12s'),
+                );
+              print('Connected as central');
 
-              // ★★★ 新增：监听通知
-              _notifSub = deviceIdChar!.onValueChangedStream.listen((value) {
-                _handleIncomingMessage(Uint8List.fromList(value));
-              });
+              // Discover services and char（保留，如果后续需要）
+              List<BluetoothService> services = await peerDevice!.discoverServices();
+              BluetoothService service = services.firstWhere((s) => s.uuid == serviceUuid);
+              deviceIdChar = service.characteristics.firstWhere((c) => c.uuid == charUuid);
+
+              try {
+                await deviceIdChar!.setNotifyValue(true);
+                print('Subscribed to characteristic');
+
+                // ★★★ 新增：监听通知
+                _notifSub = deviceIdChar!.onValueChangedStream.listen((value) {
+                  _handleIncomingMessage(Uint8List.fromList(value));
+                });
+              } catch (e) {
+                print('Subscription failed: $e');
+                showSnackBar?.call('Subscription failed');
+                reset();
+                return;
+              }
+
+              // 直接调用onDeviceFound
+              await onDeviceFound(peerDevice!);
             } catch (e) {
-              print('Subscription failed: $e');
-              showSnackBar?.call('Subscription failed');
+              print('Connection failed: $e');
+              showSnackBar?.call('Connection failed');
               reset();
-              return;
             }
-
-            // 直接调用onDeviceFound
-            await onDeviceFound(peerDevice!);
-          } catch (e) {
-            print('Connection failed: $e');
-            showSnackBar?.call('Connection failed');
-            reset();
           }
         }
+      });
+      print('Scanning started');
+    } catch (e) {
+      print('Bluetooth scan operation failed: $e');
+      if (Platform.isAndroid) {
+        // 安卓端改成“试图调用蓝牙失败”时才提醒
+        showSnackBar?.call('Please grant bluetooth permission');
+      } else {
+        showSnackBar?.call('Failed to start bluetooth scanning');
       }
-    });
+      reset();
+      return;
+    }
   }
 
   Future<void> onDeviceFound(BluetoothDevice? device) async {
