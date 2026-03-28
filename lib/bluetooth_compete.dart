@@ -81,8 +81,14 @@ class BattleController extends StateNotifier<BattleState> {
   int question_start_time = 0;
   int maxFilterPoints = 10;
 
+  // to prevent repeatedly sending messages
+  int received_msg_id = 0;//这台设备的receive与对方的sent对应，反之亦然
+  int sent_msg_id = 0;
+
   // 统一发送（Host 用 notify，Client 用 writeWithResponse）
   Future<void> _sendMessage(Map<String, dynamic> payload) async {
+    sent_msg_id += 1;
+    payload['seq'] = sent_msg_id;
     await Future.delayed(Duration(milliseconds: 300));
     final jsonStr = jsonEncode(payload);
     final data = Uint8List.fromList(utf8.encode(jsonStr));
@@ -111,6 +117,13 @@ class BattleController extends StateNotifier<BattleState> {
       final jsonStr = utf8.decode(rawData);
       final map = jsonDecode(jsonStr) as Map<String, dynamic>;
       final type = map['type'] as String;
+      final seq = map['seq'] as int? ?? -1;
+
+      if(seq != -1 && seq <= received_msg_id){
+        print("⚠️重复消息，已忽略");
+        return;
+      }
+      if(seq != -1) received_msg_id = seq;
 
       print('📥 收到消息: $type ${fromDeviceId != null ? "from $fromDeviceId" : ""}');
 
@@ -441,7 +454,7 @@ class BattleController extends StateNotifier<BattleState> {
           onDeviceFound(null);
         } else {
           print('Disconnected');
-          showSnackBar?.call('Disconnected');
+          showSnackBar?.call('Client is Disconnected');
           reset();
         }
       });
@@ -590,7 +603,7 @@ class BattleController extends StateNotifier<BattleState> {
               });
             } catch (e) {
               print('Subscription failed: $e');
-              showSnackBar?.call('Connection failed');
+              showSnackBar?.call('Subscription failed');
               reset();
               return;
             }
@@ -710,6 +723,9 @@ class BattleController extends StateNotifier<BattleState> {
     question_start_time = 0;
     maxFilterPoints = 10;
     showSnackBar = null; // 清空 SnackBar 回调
+
+    sent_msg_id = 0;
+    received_msg_id = 0;
 
     // 延迟以确保蓝牙栈稳定
     await Future.delayed(Duration(seconds: 1));
@@ -1118,6 +1134,12 @@ class _ReadyViewState extends ConsumerState<ReadyView> {
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: () async {
+                  notifier.reset();
+                },
+                child: const Text("Disconnect and back to Idle page"),
+              ),
             ],
 
             if (isHost)
@@ -1133,7 +1155,7 @@ class _ReadyViewState extends ConsumerState<ReadyView> {
                     );
                   } finally {
                     await Future.delayed(Duration(seconds: 5));
-                    setState(() => _isLoading = false);
+                    setState(() {_isLoading = false;});
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: 
                         Row(children: [

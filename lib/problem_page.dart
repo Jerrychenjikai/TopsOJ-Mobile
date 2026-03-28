@@ -316,7 +316,7 @@ class _ProblemPageState extends State<ProblemPage> {
         final bodyContent = Column(
           children: [
             Expanded(child: content),
-            if(!_isCached & _successfully_loaded) 
+            if(!_isCached & _successfully_loaded & !widget.isEmbedded) 
               ElevatedButton(
                 onPressed: () async {
                   setState(() async {
