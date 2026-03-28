@@ -523,6 +523,7 @@ class BattleController extends StateNotifier<BattleState> {
   }
 
   Future<void> startScan() async {
+    bool _usesFineLocation = false;
     // iOS 保持原有 upfront 权限检查（request + isDenied）
     if (!Platform.isAndroid) {
       if (await Permission.bluetooth.request().isDenied ||
@@ -543,6 +544,7 @@ class BattleController extends StateNotifier<BattleState> {
 
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (androidInfo.version.sdkInt <= 30) {
+        _usesFineLocation = true;
         await Permission.location.request();
       }
     }
@@ -564,7 +566,7 @@ class BattleController extends StateNotifier<BattleState> {
       await FlutterBluePlus.startScan(
         timeout: Duration(seconds: 30),
         androidScanMode: AndroidScanMode.lowLatency,
-        androidUsesFineLocation: true,
+        androidUsesFineLocation: _usesFineLocation,
       );
 
       // Listen to scan results
@@ -633,7 +635,7 @@ class BattleController extends StateNotifier<BattleState> {
       print('Bluetooth scan operation failed: $e');
       if (Platform.isAndroid) {
         // 安卓端改成“试图调用蓝牙失败”时才提醒
-        showSnackBar?.call('Please grant bluetooth permission');
+        showSnackBar?.call('Please grant bluetooth permission $e');
       } else {
         showSnackBar?.call('Failed to start bluetooth scanning');
       }
