@@ -67,6 +67,8 @@ class BattleController extends StateNotifier<BattleState> {
   // ==================== function to call snackbar ====================
   void Function(String message)? showSnackBar;
 
+  String opp_username = '';
+
   // ==================== match data ====================
   // don't forget to add all of these to reset
   List<String> problem_ids = [];
@@ -278,8 +280,8 @@ class BattleController extends StateNotifier<BattleState> {
   // ==================== Host的收/发消息的函数 ====================
   Future<void> handleClientReady(Map<String, dynamic> data) async {
     state = Ready();
-    print(data['username']);
-    //here display username
+    opp_username = data['username'];
+    print("received opponent username: ${data}");
   }
 
   Future<void> initiateMatch({
@@ -337,7 +339,7 @@ class BattleController extends StateNotifier<BattleState> {
       self_time_taken.add(0);
       opp_time_taken.add(0);
     }
-    sendProblemIds(problem_ids);
+    await sendProblemIds(problem_ids);
   }
 
   Future<void> sendProblemIds(List<String> ids) async {
@@ -347,7 +349,7 @@ class BattleController extends StateNotifier<BattleState> {
 
   Future<void> handleAckProblemIds() async {
     if (!isHost) return;
-    sendStart();
+    await sendStart();
   }
 
   Future<void> sendStart() async {
@@ -697,7 +699,7 @@ class BattleController extends StateNotifier<BattleState> {
   void onReady() async {
     state = Ready();
     if(!isHost){
-      await _sendMessage({'type': 'CLIENT_READY', 'username': 'username'});//TODO: send actual username
+      await _sendMessage({'type': 'CLIENT_READY', 'username': (await checkLogin())['username']});//TODO: send actual username
     }
   }
 
@@ -733,6 +735,7 @@ class BattleController extends StateNotifier<BattleState> {
     deviceIdChar = null;
     isHost = false;
     state = Idle();
+    opp_username = '';
 
     // 清空数据...
     problem_ids = [];
@@ -778,7 +781,7 @@ class BattlePage extends StatelessWidget {
   }
 }
 
-class BattleEntry extends ConsumerStatefulWidget {  // 改成 Stateful
+class BattleEntry extends ConsumerStatefulWidget {
   const BattleEntry({super.key});
 
   @override
@@ -797,10 +800,13 @@ class _BattleEntryState extends ConsumerState<BattleEntry> {
   }
 
   Future<void> _jumpIfNoLogin() async {
-    if ((await checkLogin()) == null) {
+    var loginStatus = await checkLogin();
+
+    if (loginStatus == null) {
       final success = await popLogin(context);
       if (success != true) {
         Navigator.pop(context);
+        return; // 登录失败，直接退出页面
       }
     }
   }
@@ -1082,6 +1088,21 @@ class _ReadyViewState extends ConsumerState<ReadyView> {
             const SizedBox(height: 32),
 
             if (isHost) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                decoration: BoxDecoration(
+                  border: Border.symmetric(
+                    horizontal: BorderSide(color: Colors.orangeAccent, width: 2),
+                  ),
+                ),
+                child: Text(
+                  "Opponent: ${notifier.opp_username}",
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              const SizedBox(height: 24),
               Row(children: [
                 Expanded(child:
                   Column(children: [
