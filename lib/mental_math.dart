@@ -573,12 +573,6 @@ class _MentalMathWidgetState extends ConsumerState<MentalMathWidget> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    "Currently your score will not count towards the leaderboard when you play a ranked game",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
                     'The objective of this drill is to calculate the result of the mathematical expressions, without using any paper.',
                   ),
                   SizedBox(height: 8),
