@@ -162,7 +162,6 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
     // - leading：排名圆圈
     // - title：username（a 和 b 中的值，即 item）
     // - trailing：升降箭头（保持原有功能）
-    // - dense 风格通过紧凑的 Row + Padding 实现
     return Container(
       height: _itemHeight,
       decoration: BoxDecoration(
@@ -246,33 +245,39 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
             ),
             const SizedBox(height: 24),
 
-            // 动画区域
-            SizedBox(
-              height: maxLen * _itemHeight + 40, // 留一点 padding
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: _uniqueItems.map((item) {
-                    return AnimatedBuilder(
-                      animation: _controller,
-                      builder: (context, child) {
-                        return Positioned(
-                          left: 0,
-                          right: 0,
-                          top: _yAnimations[item]!.value,
-                          child: Opacity(
-                            opacity: _opacityAnimations[item]!.value,
-                            child: _buildRankItem(item),
-                          ),
-                        );
-                      },
-                    );
-                  }).toList(),
+            // 动画区域（支持滚动，防止过长溢出）
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.65, // 最多占屏幕 65% 高度，可自行调整
+              ),
+              child: SingleChildScrollView(
+                child: Container(
+                  // 保持原始高度（动画需要精确的绝对定位）
+                  height: maxLen * _itemHeight + 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: _uniqueItems.map((item) {
+                      return AnimatedBuilder(
+                        animation: _controller,
+                        builder: (context, child) {
+                          return Positioned(
+                            left: 0,
+                            right: 0,
+                            top: _yAnimations[item]!.value,
+                            child: Opacity(
+                              opacity: _opacityAnimations[item]!.value,
+                              child: _buildRankItem(item),
+                            ),
+                          );
+                        },
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -283,6 +288,8 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
               onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Close'),
             ),
+
+            const SizedBox(height: 28),
           ],
         ),
       ),
