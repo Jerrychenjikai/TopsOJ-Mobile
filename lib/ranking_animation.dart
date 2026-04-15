@@ -10,12 +10,16 @@ void showRankingChangeDialog(
   BuildContext context, {
   required List<String> oldRank, // 旧榜 a
   required List<String> newRank, // 新榜 b
+  required int offset, //number of members above the two leaderboards and not included
+  String? focus, //this is the member that is going to be highlighted
 }) {
   showDialog(
     context: context,
     builder: (context) => RankingChangeDialog(
       oldRank: oldRank,
       newRank: newRank,
+      offset: offset,
+      focus: focus ?? '',
     ),
   );
 }
@@ -23,11 +27,15 @@ void showRankingChangeDialog(
 class RankingChangeDialog extends StatefulWidget {
   final List<String> oldRank;
   final List<String> newRank;
+  final int offset;
+  final String focus;
 
   const RankingChangeDialog({
     super.key,
     required this.oldRank,
     required this.newRank,
+    required this.offset,
+    required this.focus,
   });
 
   @override
@@ -140,7 +148,7 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
     final newIdx = _newPositions[item];
 
     // 显示的目标排名（优先新榜）
-    final displayRank = (newIdx ?? oldIdx ?? 0) + 1;
+    final displayRank = (newIdx ?? oldIdx ?? 0) + 1 + widget.offset;
 
     // 升降箭头（仅当位置发生变化时显示）
     Widget? changeIcon;
@@ -157,6 +165,11 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
     // - dense 风格通过紧凑的 Row + Padding 实现
     return Container(
       height: _itemHeight,
+      decoration: BoxDecoration(
+        color: widget.focus == item
+          ? Theme.of(context).colorScheme.surfaceContainerLow
+          : Colors.transparent,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Row(
@@ -268,7 +281,7 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
 
             OutlinedButton(
               onPressed: () => Navigator.of(context).pop(),
-                child: const Text('关闭'),
+                child: const Text('Close'),
             ),
           ],
         ),

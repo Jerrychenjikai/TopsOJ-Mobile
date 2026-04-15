@@ -84,9 +84,9 @@ class HomePage extends ConsumerWidget {
                         Text(
                           titles[index],
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                         ),
                       ],
                     ),
@@ -94,8 +94,8 @@ class HomePage extends ConsumerWidget {
                     Text(
                       descriptions[index],
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                        color: Colors.grey[600],
+                      ),
                     ),
                     const SizedBox(height: 16.0),
                     if (index == 0) ...[

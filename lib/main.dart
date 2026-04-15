@@ -89,6 +89,8 @@ class _MainPageState extends ConsumerState<MainPage> {
       context,
       oldRank: ['张三', '李四', '王五', '赵六', '孙七', '周八', '吴九'],
       newRank: ['李四', '王五', '孙七', '张三', '周八', '新用户A', '新用户B', '吴九'],
+      offset: 10,
+      focus: '新用户A',
     );
     super.initState();
   }
