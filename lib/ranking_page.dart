@@ -113,7 +113,7 @@ class _RankingState extends ConsumerState<RankingPage> {
                   leading: leading,
                   title: Text(
                     username,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                   trailing: Text(
                     trailingText,

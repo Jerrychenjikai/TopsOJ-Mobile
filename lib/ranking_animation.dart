@@ -58,7 +58,7 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
   late final Map<String, int> _newPositions;
 
   // 每一行的高度（固定值，保证 Positioned 动画精确）
-  static const double _itemHeight = 72.0;
+  static const double _itemHeight = 50.0;
 
   @override
   void initState() {
@@ -174,31 +174,27 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
         child: Row(
           children: [
             // leading（排名圆圈）
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: displayRank == 1
-                  ? Colors.amber
-                  : displayRank == 2
-                      ? Colors.grey
-                      : displayRank == 3
-                          ? Colors.brown
-                          : Colors.blueGrey,
-              child: Text(
-                '$displayRank',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+            Text(
+              '$displayRank',
+              style: TextStyle(
+                color: displayRank == 1
+                    ? Colors.amber
+                    : displayRank == 2
+                        ? Colors.grey
+                        : displayRank == 3
+                            ? Colors.brown
+                            : Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
               ),
             ),
             const SizedBox(width: 16),
-            // title（username 使用 a/b 中的值）
+            // title
             Expanded(
               child: Text(
                 item,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),
               ),
