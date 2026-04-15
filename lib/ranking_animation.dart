@@ -253,7 +253,7 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
               child: SingleChildScrollView(
                 child: Container(
                   // 保持原始高度（动画需要精确的绝对定位）
-                  height: maxLen * _itemHeight + 40,
+                  height: maxLen * _itemHeight + 1,
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(16),
@@ -281,15 +281,6 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
                 ),
               ),
             ),
-
-            const SizedBox(height: 28),
-
-            OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-            ),
-
-            const SizedBox(height: 28),
           ],
         ),
       ),
