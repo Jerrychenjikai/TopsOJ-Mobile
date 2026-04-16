@@ -175,8 +175,8 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
 
     // 升降箭头（仅当位置真的变化时显示）
     Widget? changeIcon;
-    if (oldIdx != null && newIdx != null && oldIdx != newIdx) {
-      changeIcon = newIdx < oldIdx
+    if (oldIdx != null && newIdx != null && oldIdx + widget.offsetA != newIdx + widget.offsetB) {
+      changeIcon = newIdx + widget.offsetB  < oldIdx + widget.offsetA
           ? const Icon(Icons.arrow_upward, color: Colors.green, size: 22)
           : const Icon(Icons.arrow_downward, color: Colors.red, size: 22);
     }
