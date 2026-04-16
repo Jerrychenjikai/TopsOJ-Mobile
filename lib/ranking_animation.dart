@@ -157,7 +157,7 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
       );
     }
 
-    Future.delayed(const Duration(milliseconds: 400), () {
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) _controller.forward();
     });
   }

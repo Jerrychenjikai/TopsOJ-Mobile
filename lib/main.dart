@@ -87,11 +87,11 @@ class _MainPageState extends ConsumerState<MainPage> {
   void initState() {
     showRankingChangeDialog(
       context,
-      oldRank: ['张三', '李四', '王五', '赵六', '孙七', '周八', '吴九'],
-      newRank: ['李四', '王五', '孙七', '张三', '周八', '新用户A', '新用户B', '吴九'],
-      offsetA: 10,
-      offsetB: 20,
-      focus: '孙七',
+      oldRank: ['A','B','C','D','E'],
+      newRank: ['F','G','C','H','A'],
+      offsetA: 3,
+      offsetB: 0,
+      focus: 'C',
     );
     super.initState();
   }
