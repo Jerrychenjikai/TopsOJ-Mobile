@@ -20,7 +20,6 @@ import 'package:TopsOJ/bluetooth_compete.dart';
 import 'package:TopsOJ/problems_page.dart';
 import 'package:TopsOJ/home_page.dart';
 import 'package:TopsOJ/index_providers.dart';
-import 'package:TopsOJ/ranking_animation.dart';
 
 
 void main() async {
@@ -85,14 +84,6 @@ class _MainPageState extends ConsumerState<MainPage> {
 
   @override
   void initState() {
-    showRankingChangeDialog(
-      context,
-      oldRank: ['A','B','C','D','E'],
-      newRank: ['F','G','C','H','A'],
-      offsetA: 3,
-      offsetB: 0,
-      focus: 'C',
-    );
     super.initState();
   }
 

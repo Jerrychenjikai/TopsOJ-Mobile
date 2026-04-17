@@ -1,4 +1,60 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+
+import 'package:TopsOJ/basic_func.dart';
+import 'package:TopsOJ/login_page.dart';
+
+Future<void> submitAndRankingAnimation(BuildContext context, String leaderboard_type, Future<void> Function(String) callback) async {
+  // 尝试拿到当前登录信息（与示例一致）
+  var s = await checkLogin();
+  if (s == null) {
+    // 如果未登录，弹出登录（popLogin 返回 true 表示登录成功）
+    final success = await popLogin(context);
+    if (success != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Not logged in, score not submitted')),
+      );
+      return;
+    }
+    // 再次获取登录信息
+    s = await checkLogin();
+  }
+
+  var response = await fetchRanking(0, leaderboard_type, username: s['userdata']['username']);
+  List<dynamic> _leaderboard_init = json.decode(response.body)['data']['users'];
+  int _initial_rank = -1;
+  int _initial_offset = _leaderboard_init[0]['ranking'] - 1;
+
+  for(int i=0; i<_leaderboard_init.length; i++){
+    if(_leaderboard_init[i]['username'] == s['userdata']['username']) 
+      _initial_rank = _leaderboard_init[i]['ranking'];
+    _leaderboard_init[i] = _leaderboard_init[i]['username'];
+  }
+
+  await callback(s['apikey']);
+
+  response = await fetchRanking(0, leaderboard_type, username: s['userdata']['username']);
+  List<dynamic> _leaderboard_after = json.decode(response.body)['data']['users'];
+  int _after_rank = -1;
+  int _after_offset = _leaderboard_after[0]['ranking'] - 1;
+
+  for(int i=0; i<_leaderboard_after.length; i++){
+    if(_leaderboard_after[i]['username'] == s['userdata']['username']) 
+      _after_rank = _leaderboard_after[i]['ranking'];
+    _leaderboard_after[i] = _leaderboard_after[i]['username'];
+  }
+
+  if((_initial_rank != _after_rank && _after_rank != -1 && _initial_rank != -1)){
+    showRankingChangeDialog(
+      context,
+      oldRank: _leaderboard_init.cast<String>(),
+      newRank: _leaderboard_after.cast<String>(),
+      offsetA: _initial_offset,
+      offsetB: _after_offset,
+      focus: s['userdata']['username'],
+    );
+  }
+}
 
 /// 显示排行榜变化动画的 Dialog（支持旧榜/新榜各自独立的 offset + 排名数字动效）
 /// - 两个 offset 独立，显示区域始终顶部对齐

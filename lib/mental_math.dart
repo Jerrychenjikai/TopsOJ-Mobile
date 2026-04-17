@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
+import 'package:TopsOJ/ranking_animation.dart';
 
 enum GamePhase {
   config,
@@ -149,23 +150,7 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   // sendTimeToServer: 检查登录 -> 提交到 topsoj 提交接口
-  Future<void> sendTimeToServer(BuildContext context, Duration timeTaken) async {
-    // 尝试拿到当前登录信息（与示例一致）
-    var s = await checkLogin();
-    if (s == null) {
-      // 如果未登录，弹出登录（popLogin 返回 true 表示登录成功）
-      final success = await popLogin(context);
-      if (success != true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Not logged in, score not submitted')),
-        );
-        return;
-      }
-      // 再次获取登录信息
-      s = await checkLogin();
-    }
-
-    final String apiKey = s['apikey'];
+  Future<void> sendTimeToServer(BuildContext context, Duration timeTaken, String apiKey) async {
     final headers = {
       'Authorization': 'Bearer $apiKey',
       'Content-Type': 'application/json',
@@ -181,21 +166,19 @@ class GameNotifier extends StateNotifier<GameState> {
           .post(uri, headers: headers, body: body)
           .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        debugPrint('submit-time success');
-      } else {
-        debugPrint(
-            'submit-time failed: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(
             'submit-time failed: ${response.statusCode} - ${response.body}'
           )),
         );
-        // 根据需要可以在 UI 上提示用户或重试（此处只打印）
       }
     } catch (e, st) {
-      debugPrint('Error submitting time: $e\n$st');
-      // 捕获异常（超时/网络错误等），避免崩溃
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          'Error submitting time: $e\n$st'
+        )),
+      );
     }
   }
 
@@ -215,7 +198,9 @@ class GameNotifier extends StateNotifier<GameState> {
 
       // 如果是排行赛，提交成绩（等待完成以确保提交成功，或改为不 await fire-and-forget）
       if (state.isRanked) {
-        await sendTimeToServer(context, totalTime);
+        await submitAndRankingAnimation(context, "mental math", (apikey) async {
+          await sendTimeToServer(context, totalTime, apikey);
+        });
       }
     } else {
       state = state.copyWith(currentIndex: nextIndex);

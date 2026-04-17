@@ -30,19 +30,7 @@ class _RankingState extends ConsumerState<RankingPage> {
       _leaderboard_render = [];
 
       try {
-        final url = Uri.parse('https://topsoj.com/api/rankings');
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        String? apiKey = prefs.getString('apiKey');
-        var headers = {'Authorization': 'Bearer $apiKey'};
-
-        final response = await http.post(
-          url,
-          headers: headers,
-          body: {
-            'page': _page.toString(),
-            'leaderboard_type': _ranking_category,
-          },
-        );
+        final response = await fetchRanking(_page, _ranking_category);
 
         if (response.statusCode == 200) {
           final Map<String, dynamic> jsonResponse = json.decode(response.body);

@@ -40,6 +40,24 @@ Future<Map<String, dynamic>> checkApiKeyValid(String apiKey) async {
   }
 }
 
+Future<dynamic> fetchRanking(int page, String leaderboard_type, {String? username}) async {
+  final url = Uri.parse('https://topsoj.com/api/rankings');
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? apiKey = prefs.getString('apiKey');
+  var headers = {'Authorization': 'Bearer $apiKey'};
+
+  final response = await http.post(
+    url,
+    headers: headers,
+    body: {
+      'page': page.toString(),
+      'leaderboard_type': leaderboard_type,
+      'username': username ?? "",
+    },
+  );
+  return response;
+}
+
 Future<dynamic> checkLogin() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String apiKey = prefs.getString('apiKey') ?? '';
