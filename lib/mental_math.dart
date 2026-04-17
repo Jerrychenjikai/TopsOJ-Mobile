@@ -567,6 +567,7 @@ class _MentalMathWidgetState extends ConsumerState<MentalMathWidget> {
                   Text('• Number of operations: generated randomly; expressions may contain brackets and operations (+, -, ×).'),
                   SizedBox(height: 8),
                   Text('When playing a ranked game, fixed defaults are used (10 drills, small multipliers).'),
+                  Text('Your ranked game score will only count towards the leaderboard once every 4 hours'),
                 ],
               ),
             ),

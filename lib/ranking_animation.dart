@@ -4,7 +4,15 @@ import 'dart:convert';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
 
-Future<void> submitAndRankingAnimation(BuildContext context, String leaderboard_type, Future<void> Function(String) callback) async {
+Future<bool> submitAndRankingAnimation(
+  BuildContext context, 
+  String leaderboard_type, 
+  Future<void> Function(String) callback) 
+  async {
+  
+  //return true -> logged in
+  //return false -> not logged in
+
   // 尝试拿到当前登录信息（与示例一致）
   var s = await checkLogin();
   if (s == null) {
@@ -14,7 +22,7 @@ Future<void> submitAndRankingAnimation(BuildContext context, String leaderboard_
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Not logged in, score not submitted')),
       );
-      return;
+      return false;
     }
     // 再次获取登录信息
     s = await checkLogin();
@@ -54,6 +62,8 @@ Future<void> submitAndRankingAnimation(BuildContext context, String leaderboard_
       focus: s['userdata']['username'],
     );
   }
+
+  return true;
 }
 
 /// 显示排行榜变化动画的 Dialog（支持旧榜/新榜各自独立的 offset + 排名数字动效）
