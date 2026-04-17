@@ -157,7 +157,14 @@ class GameNotifier extends StateNotifier<GameState> {
     };
 
     // 服务端期望 timeTaken 是以秒为单位的数值（可带小数），服务端会 *1000 转为毫秒
-    final double timeTakenSeconds = timeTaken.inMilliseconds / 1000.0;
+    double timeTakenSeconds = timeTaken.inMilliseconds / 1000.0;
+    // 根据做错的题目数罚时
+    for(int i=0; i < state.drills.length; i++){
+      if(state.drills[i]['answer'] != state.userAnswers[i]){
+        print("wrong answer");
+        timeTakenSeconds += 30.0;
+      }
+    }
     final body = jsonEncode({'timeTaken': timeTakenSeconds});
 
     try {
