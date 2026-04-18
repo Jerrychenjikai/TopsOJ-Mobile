@@ -4,23 +4,26 @@ import 'dart:convert';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
 
-Future<bool> submitAndRankingAnimation(
+Future<dynamic> submitAndRankingAnimation(
   BuildContext context, 
   String leaderboard_type, 
-  Future<void> Function(String) callback) 
+  bool requires_login,
+  Future<dynamic> Function(String?) callback),//if not logged in, then input value is null
   async {
   
-  //return true -> logged in
   //return false -> not logged in
+  //return other -> logged in
 
   // 尝试拿到当前登录信息（与示例一致）
   var s = await checkLogin();
-  if (s == null) {
+  if (s == null && requires_login) {
     // 如果未登录，弹出登录（popLogin 返回 true 表示登录成功）
     final success = await popLogin(context);
     if (success != true) {
+      //if requires login, then end the function if s is null
+      //if does not require login, then s could be null
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not logged in, score not submitted')),
+        const SnackBar(content: Text('Have to log in to submit')),
       );
       return false;
     }
@@ -28,28 +31,48 @@ Future<bool> submitAndRankingAnimation(
     s = await checkLogin();
   }
 
-  var response = await fetchRanking(0, leaderboard_type, username: s['userdata']['username']);
-  List<dynamic> _leaderboard_init = json.decode(response.body)['data']['users'];
-  int _initial_rank = -1;
-  int _initial_offset = _leaderboard_init[0]['ranking'] - 1;
+  //if not logged in, do not draw animation
+  if(s == null) return await callback(null);
 
-  for(int i=0; i<_leaderboard_init.length; i++){
-    if(_leaderboard_init[i]['username'] == s['userdata']['username']) 
-      _initial_rank = _leaderboard_init[i]['ranking'];
-    _leaderboard_init[i] = _leaderboard_init[i]['username'];
+  String? provided_username = s['userdata']['username'];
+
+  int _initial_rank = -1;
+  var response = await fetchRanking(0, leaderboard_type, username: provided_username!);
+  List<dynamic> _leaderboard_init = [];
+  int _initial_offset = -1;
+
+  if(response.statusCode == 200){//problem_page requires this function to work without internet access
+    _leaderboard_init = json.decode(response.body)['data']['users'];
+    _initial_offset = _leaderboard_init[0]['ranking'] - 1;
+
+    for(int i=0; i<_leaderboard_init.length; i++){
+      if(_leaderboard_init[i]['username'] == s['userdata']['username']) 
+        _initial_rank = _leaderboard_init[i]['ranking'];
+      _leaderboard_init[i] = _leaderboard_init[i]['username'];
+    }
   }
 
-  await callback(s['apikey']);
 
-  response = await fetchRanking(0, leaderboard_type, username: s['userdata']['username']);
-  List<dynamic> _leaderboard_after = json.decode(response.body)['data']['users'];
+  var outer_response = await callback(s['apikey']);
+
+  //do not bother searching for the second time if not originally in the ranking
+  if(_initial_rank == -1) return outer_response;
+
+
   int _after_rank = -1;
-  int _after_offset = _leaderboard_after[0]['ranking'] - 1;
+  response = await fetchRanking(0, leaderboard_type, username: provided_username!);
+  List<dynamic> _leaderboard_after = [];
+  int _after_offset = -1;
 
-  for(int i=0; i<_leaderboard_after.length; i++){
-    if(_leaderboard_after[i]['username'] == s['userdata']['username']) 
-      _after_rank = _leaderboard_after[i]['ranking'];
-    _leaderboard_after[i] = _leaderboard_after[i]['username'];
+  if(response.statusCode == 200){
+    _leaderboard_after = json.decode(response.body)['data']['users'];
+    _after_offset = _leaderboard_after[0]['ranking'] - 1;
+
+    for(int i=0; i<_leaderboard_after.length; i++){
+      if(_leaderboard_after[i]['username'] == s['userdata']['username']) 
+        _after_rank = _leaderboard_after[i]['ranking'];
+      _leaderboard_after[i] = _leaderboard_after[i]['username'];
+    }
   }
 
   if((_initial_rank != _after_rank && _after_rank != -1 && _initial_rank != -1)){
@@ -59,11 +82,11 @@ Future<bool> submitAndRankingAnimation(
       newRank: _leaderboard_after.cast<String>(),
       offsetA: _initial_offset,
       offsetB: _after_offset,
-      focus: s['userdata']['username'],
+      focus: provided_username!,
     );
   }
 
-  return true;
+  return outer_response;
 }
 
 /// 显示排行榜变化动画的 Dialog（支持旧榜/新榜各自独立的 offset + 排名数字动效）

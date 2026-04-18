@@ -150,7 +150,7 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   // sendTimeToServer: 检查登录 -> 提交到 topsoj 提交接口
-  Future<void> sendTimeToServer(BuildContext context, Duration timeTaken, String apiKey) async {
+  Future<bool> sendTimeToServer(BuildContext context, Duration timeTaken, String apiKey) async {
     final headers = {
       'Authorization': 'Bearer $apiKey',
       'Content-Type': 'application/json',
@@ -161,7 +161,6 @@ class GameNotifier extends StateNotifier<GameState> {
     // 根据做错的题目数罚时
     for(int i=0; i < state.drills.length; i++){
       if(state.drills[i]['answer'] != state.userAnswers[i]){
-        print("wrong answer");
         timeTakenSeconds += 30.0;
       }
     }
@@ -186,7 +185,9 @@ class GameNotifier extends StateNotifier<GameState> {
           'Error submitting time: $e\n$st'
         )),
       );
+      return false;
     }
+    return true;
   }
 
   // 修改后的 submitAnswer：注意它现在是 async，并接收 BuildContext
@@ -205,8 +206,12 @@ class GameNotifier extends StateNotifier<GameState> {
 
       // 如果是排行赛，提交成绩（等待完成以确保提交成功，或改为不 await fire-and-forget）
       if (state.isRanked) {
-        await submitAndRankingAnimation(context, "mental math", (apikey) async {
-          await sendTimeToServer(context, totalTime, apikey);
+        await submitAndRankingAnimation(
+          context, 
+          "mental math", 
+          true,
+          (apikey) async {
+          return await sendTimeToServer(context, totalTime, apikey!);
         });
       }
     } else {

@@ -6,10 +6,12 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'dart:io';
 import "package:TopsOJ/login_page.dart";
+import 'package:TopsOJ/ranking_animation.dart';
 
 
 // 题目页面
@@ -105,10 +107,16 @@ class _ProblemPageState extends State<ProblemPage> {
       );
       return;
     }
-    if(((await checkLogin()) == null) && !(await is_cached(widget.problemId))){
-      await popLogin(context);
-    }
-    var response = await submitProblem(widget.problemId, answer);
+    
+    var response = await submitAndRankingAnimation(
+      context,
+      'total points',
+      !(await is_cached(widget.problemId)),//如果已经缓存，则不一定需要登陆
+      (apiKey) async {
+        return await submitProblem(widget.problemId, answer);
+      }
+    );
+
     if (response['statusCode'] == 200) {
       _controller.clear();
       final passed = response['data']['check'] as bool;
