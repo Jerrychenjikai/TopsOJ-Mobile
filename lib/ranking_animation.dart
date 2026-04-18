@@ -8,7 +8,7 @@ Future<dynamic> submitAndRankingAnimation(
   BuildContext context, 
   String leaderboard_type, 
   bool requires_login,
-  Future<dynamic> Function(String?) callback),//if not logged in, then input value is null
+  Future<dynamic> Function(String?) callback)//if not logged in, then input value is null
   async {
   
   //return false -> not logged in
