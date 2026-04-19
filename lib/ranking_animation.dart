@@ -14,7 +14,7 @@ Future<dynamic> submitAndRankingAnimation(
   //return false -> not logged in
   //return other -> logged in
 
-  // 尝试拿到当前登录信息（与示例一致）
+  // 尝试拿到当前登录信息
   var s = await checkLogin();
   if (s == null && requires_login) {
     // 如果未登录，弹出登录（popLogin 返回 true 表示登录成功）
@@ -82,7 +82,8 @@ Future<dynamic> submitAndRankingAnimation(
       newRank: _leaderboard_after.cast<String>(),
       offsetA: _initial_offset,
       offsetB: _after_offset,
-      focus: provided_username!,
+      leaderboard_type: leaderboard_type,
+      focus: provided_username!
     );
   }
 
@@ -101,6 +102,7 @@ void showRankingChangeDialog(
   required List<String> newRank, // 新榜 b
   required int offsetA, // 旧榜 offset
   required int offsetB, // 新榜 offset
+  required String leaderboard_type,
   String? focus, // 要高亮的成员
 }) {
   showDialog(
@@ -110,6 +112,7 @@ void showRankingChangeDialog(
       newRank: newRank,
       offsetA: offsetA,
       offsetB: offsetB,
+      leaderboard_type: leaderboard_type,
       focus: focus ?? '',
     ),
   );
@@ -121,6 +124,7 @@ class RankingChangeDialog extends StatefulWidget {
   final int offsetA;
   final int offsetB;
   final String focus;
+  final String leaderboard_type;
 
   const RankingChangeDialog({
     super.key,
@@ -128,6 +132,7 @@ class RankingChangeDialog extends StatefulWidget {
     required this.newRank,
     required this.offsetA,
     required this.offsetB,
+    required this.leaderboard_type,
     required this.focus,
   });
 
@@ -329,7 +334,7 @@ class _RankingChangeDialogState extends State<RankingChangeDialog>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Your rank changed!',
+              'Your ${widget.leaderboard_type} rank changed!',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
