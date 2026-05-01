@@ -68,6 +68,9 @@ class BattleController extends StateNotifier<BattleState> {
   void Function(String message)? showSnackBar;
 
   String opp_username = '';
+  int opp_uid = 0;
+  String self_username = '';
+  int self_uid = 0;
 
   // ==================== match data ====================
   // don't forget to add all of these to reset
@@ -281,6 +284,12 @@ class BattleController extends StateNotifier<BattleState> {
   Future<void> handleClientReady(Map<String, dynamic> data) async {
     state = Ready();
     opp_username = data['username'];
+    opp_uid = data['uid'];
+
+    final s = await checkLogin();
+    self_username = s['username'];
+    self_uid = s['userdata']['id'];
+
     print("received opponent username: ${data}");
   }
 
@@ -376,8 +385,30 @@ class BattleController extends StateNotifier<BattleState> {
     int clientScore = 0;
 
     for(int i=0;i<numProblems;i++){
-      hostScore += (self_correct[i] ? 1 : 0) * (10 + max(0, 5-(self_time_taken[i]/1000)).toInt());
-      clientScore += (opp_correct[i] ? 1 : 0) * (10 + max(0, 5-(opp_time_taken[i]/1000)).toInt());
+      hostScore += ((self_correct[i] ? 1.0 : 0.0) * 10.0 / max(1, self_time_taken[i]) *  max(opp_time_taken[i], self_time_taken[i])).toInt();
+      clientScore += ((opp_correct[i] ? 1.0 : 0.0) * 10.0 / max(1, opp_time_taken[i]) *  max(opp_time_taken[i], self_time_taken[i])).toInt();
+    }
+
+    if(hostScore != clientScore){
+      int _winner = 0;
+      int _loser = 0;
+      if(hostScore > clientScore){
+        _winner = self_uid;
+        _loser = opp_uid;
+      }
+      if(hostScore < clientScore){
+        _winner = opp_uid;
+        _loser = self_uid;
+      }
+
+      final _response = await submitPvpResult(_winner, _loser);
+      showSnackBar?.call(_response.statusCode != 200
+                          ? 'Failed to send match result to server. This match will not count towards leaderboard'
+                          : 'Match result sent to server.'
+      );
+      print(jsonDecode(_response.body));
+      print(_winner);
+      print(_loser);
     }
 
     finish(hostScore, clientScore);
@@ -699,7 +730,8 @@ class BattleController extends StateNotifier<BattleState> {
   void onReady() async {
     state = Ready();
     if(!isHost){
-      await _sendMessage({'type': 'CLIENT_READY', 'username': (await checkLogin())['username']});//TODO: send actual username
+      final s = await checkLogin();
+      await _sendMessage({'type': 'CLIENT_READY', 'username': s['username'], 'uid': s['userdata']['id']});
     }
   }
 
@@ -1002,6 +1034,13 @@ class IdleView extends ConsumerWidget {
               child: const Text("Start as Host"),
             ),
           ],
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () {
+            fetchPvpLeaderboard();
+          },
+          child: const Text("leaderboard"),
         ),
       ],
     );

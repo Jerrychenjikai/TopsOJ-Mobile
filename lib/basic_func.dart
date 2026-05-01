@@ -58,6 +58,40 @@ Future<dynamic> fetchRanking(int page, String leaderboard_type, {String? usernam
   return response;
 }
 
+Future<dynamic> fetchPvpLeaderboard() async {
+  final url = Uri.parse('https://topsoj.com/api/pvpleaderboard');
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? apiKey = prefs.getString('apiKey');
+  var headers = {'Authorization': 'Bearer $apiKey'};
+
+  final response = await http.post(
+    url,
+    headers: headers,
+  );
+  print(jsonDecode(response.body));
+  return response;
+}
+
+Future<dynamic> submitPvpResult(int winner_id, int loser_id) async {
+  final url = Uri.parse('https://topsoj.com/api/newpvprecord');
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String apiKey = prefs.getString('apiKey') ?? '';
+  if (apiKey.isEmpty) return null;
+
+  var headers = {'Authorization': 'Bearer $apiKey'};
+
+  final response = await http.post(
+    url,
+    headers: headers,
+    body: {
+      'winner': winner_id.toString(),
+      'loser': loser_id.toString(),
+    },
+  );
+
+  return response;
+}
+
 Future<dynamic> checkLogin() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String apiKey = prefs.getString('apiKey') ?? '';
@@ -216,16 +250,6 @@ Future<List<dynamic>> fetchWeeklylb() async {
   }
 
   return weeklylb;
-}
-
-double min(double a, double b){
-  if(a<b) return a;
-  return b;
-}
-
-double max(double a,double b){
-  if(a<b) return b;
-  return a;
 }
 
 Future<void> launchURL(BuildContext context, String url) async {

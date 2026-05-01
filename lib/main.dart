@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math';
 
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/problem_page.dart';
