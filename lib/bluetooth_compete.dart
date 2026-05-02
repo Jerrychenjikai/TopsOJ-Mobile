@@ -1035,13 +1035,6 @@ class IdleView extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: () {
-            fetchPvpLeaderboard();
-          },
-          child: const Text("leaderboard"),
-        ),
       ],
     );
   }

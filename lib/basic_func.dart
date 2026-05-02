@@ -64,7 +64,7 @@ Future<dynamic> fetchPvpLeaderboard() async {
   String? apiKey = prefs.getString('apiKey');
   var headers = {'Authorization': 'Bearer $apiKey'};
 
-  final response = await http.post(
+  final response = await http.get(
     url,
     headers: headers,
   );
