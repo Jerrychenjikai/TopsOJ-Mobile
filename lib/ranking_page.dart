@@ -64,7 +64,7 @@ class PvpLeaderboardWidget extends StatelessWidget {
 
         // 空数据
         if (tiers.isEmpty) {
-          return const Center(child: Text('暂无排行榜，快去对战吧！'));
+          return const Center(child: Text('Play math pvp with someone else to join the leaderboard'));
         }
 
         // 构建分层卡片列表
