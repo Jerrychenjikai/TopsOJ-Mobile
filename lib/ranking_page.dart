@@ -15,12 +15,16 @@ class PvpLeaderboardWidget extends StatelessWidget {
   const PvpLeaderboardWidget({super.key});
 
   /// 异步拉取并解析排行榜数据
-  Future<List<List<int>>> _fetchLeaderboard() async {
+  // 修改返回类型：List<List<Map<String, dynamic>>>
+  Future<List<List<Map<String, dynamic>>>> _fetchLeaderboard() async {
     final response = await fetchPvpLeaderboard();
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final List<dynamic> usersList = data['data']['users'];
-      return usersList.map((e) => List<int>.from(e)).toList();
+      // 修改映射逻辑：将每个元素转为 Map 列表
+      return usersList.map((e) =>
+        (e as List<dynamic>).map((obj) => Map<String, dynamic>.from(obj)).toList()
+      ).toList();
     } else {
       throw Exception(
         'Failed to load leaderboard: ${response.statusCode} ${response.reasonPhrase ?? ""}',
@@ -30,7 +34,7 @@ class PvpLeaderboardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<List<int>>>(
+    return FutureBuilder<List<List<Map<String, dynamic>>>>( // 更新类型参数
       future: _fetchLeaderboard(),
       builder: (context, snapshot) {
         // 加载中
@@ -76,8 +80,8 @@ class PvpLeaderboardWidget extends StatelessWidget {
           if (tier.isEmpty) continue;
 
           final List<Widget> children = [];
-          for (final userId in tier) {
-            children.add(_buildUserTile(userId, currentRank));
+          for (final userMap in tier) { // 原来是 userId，现改为 userMap
+            children.add(_buildUserTile(userMap, currentRank)); // 传递 Map
             currentRank++;
           }
 
@@ -87,8 +91,8 @@ class PvpLeaderboardWidget extends StatelessWidget {
                 'Tier ${i + 1}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              collapsedShape: const Border(), // 收起时无边框
-              shape: const Border(),          // 展开时无边框
+              collapsedShape: const Border(),
+              shape: const Border(),
               children: children,
             ),
           );
@@ -103,7 +107,11 @@ class PvpLeaderboardWidget extends StatelessWidget {
   }
 
   /// 构建单个用户条目，样式与原有排行榜保持一致
-  Widget _buildUserTile(int userId, int rank) {
+  // 修改参数类型：接收用户数据 Map
+  Widget _buildUserTile(Map<String, dynamic> user, int rank) {
+    final int userId = user['id'] as int;
+    final String username = user['username'] as String? ?? 'User $userId'; // 优先显示 username
+
     // 奖牌图标或数字序号
     Widget leading;
     if (rank <= 3) {
@@ -141,11 +149,11 @@ class PvpLeaderboardWidget extends StatelessWidget {
       );
     }
 
-    // 标题目前使用用户 ID，未来可替换为真实用户名
+    // 标题显示用户名（而不是 User id）
     return ListTile(
       leading: leading,
       title: Text(
-        'User $userId',
+        username, // 原来这里是 'User $userId'
         style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
       ),
       dense: true,
