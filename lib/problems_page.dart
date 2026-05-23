@@ -11,6 +11,7 @@ import 'package:TopsOJ/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/problem_page.dart';
 import 'package:TopsOJ/login_page.dart';
+import 'package:TopsOJ/template.dart';
 
 class Problems extends ConsumerStatefulWidget {
   const Problems({super.key});
@@ -21,7 +22,6 @@ class Problems extends ConsumerStatefulWidget {
 
 class _ProblemsState extends ConsumerState<Problems> {
   RangeValues _pointRange = const RangeValues(1, 10);
-  double _splitRatio = 0.3;
   final TextEditingController _problemIdController = TextEditingController();
   int _page = 1;
   int _problems_cnt = 3;
@@ -109,6 +109,151 @@ class _ProblemsState extends ConsumerState<Problems> {
     return widgets;
   }
 
+  Widget _buildFilter() {
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                const Text("Filter by solved: "),
+                Expanded(
+                  child: DropdownButton<int>(
+                    value: _solved, // 当前选中值 (0,1,2)
+                    isExpanded: true, // 让下拉菜单占满宽度
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(8),
+                    underline: Container(
+                      height: 2,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    items: const [
+                      DropdownMenuItem<int>(
+                        value: 0,
+                        child: Text('Incorrect'),
+                      ),
+                      DropdownMenuItem<int>(
+                        value: 1,
+                        child: Text('All'),
+                      ),
+                      DropdownMenuItem<int>(
+                        value: 2,
+                        child: Text('Correct'),
+                      ),
+                    ],
+                    onChanged: (int? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _solved = newValue;
+                          _page = 1;
+                          _getProblems();
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              const Text("Filter by points: "),
+              Expanded(child: 
+                RangeSlider(
+                  min: 1,
+                  max: 10,
+                  divisions: 9,               // 可选：分成多少段（整数步长）
+                  labels: RangeLabels(
+                    _pointRange.start.round().toString(),
+                    _pointRange.end.round().toString(),
+                  ),
+                  values: _pointRange,
+                  onChanged: (RangeValues values) {
+                    setState(() {
+                      _pointRange = values;
+                      _page = 1;
+                      _getProblems();
+                    });
+                  },
+                ),
+              ),
+            ],),
+            const SizedBox(height: 10),
+            Expanded(
+              child: TextField(
+                controller: _problemIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Enter Problem Name/ID',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (value) {
+                  _page = 1;
+                  _getProblems();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (_page > 1)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _page = _page - 1;
+                        _getProblems();
+                      });
+                    },
+                  child: const Icon(Icons.arrow_back),
+                )
+                else
+                  const SizedBox(width: 60),
+                Text(
+                  'Page $_page/${(_problems_cnt / 10).ceil()}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                if (_page * 10 < _problems_cnt)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _page = _page + 1;
+                        _getProblems();
+                      });
+                    },
+                    child: const Icon(Icons.arrow_forward),
+                  )
+                else
+                  const SizedBox(width: 60),
+              ],
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: _render(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<String?>(
@@ -130,241 +275,9 @@ class _ProblemsState extends ConsumerState<Problems> {
         );
       },
     );
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final maxHeight = constraints.maxHeight;
-            final maxWidth = constraints.maxWidth;
-            final isLandscape = maxWidth > maxHeight;
-            const maxSplit = 0.5;
-            Widget buildFilter() {
-              return Card(
-                color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          const Text("Filter by solved: "),
-                          Expanded(
-                            child: DropdownButton<int>(
-                              value: _solved, // 当前选中值 (0,1,2)
-                              isExpanded: true, // 让下拉菜单占满宽度
-                              elevation: 4,
-                              borderRadius: BorderRadius.circular(8),
-                              underline: Container(
-                                height: 2,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              items: const [
-                                DropdownMenuItem<int>(
-                                  value: 0,
-                                  child: Text('Incorrect'),
-                                ),
-                                DropdownMenuItem<int>(
-                                  value: 1,
-                                  child: Text('All'),
-                                ),
-                                DropdownMenuItem<int>(
-                                  value: 2,
-                                  child: Text('Correct'),
-                                ),
-                              ],
-                              onChanged: (int? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _solved = newValue;
-                                    _page = 1;
-                                    _getProblems();
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(children: [
-                        const Text("Filter by points: "),
-                        Expanded(child: 
-                          RangeSlider(
-                            min: 1,
-                            max: 10,
-                            divisions: 9,               // 可选：分成多少段（整数步长）
-                            labels: RangeLabels(
-                              _pointRange.start.round().toString(),
-                              _pointRange.end.round().toString(),
-                            ),
-                            values: _pointRange,
-                            onChanged: (RangeValues values) {
-                              setState(() {
-                                _pointRange = values;
-                                _page = 1;
-                                _getProblems();
-                              });
-                            },
-                          ),
-                        ),
-                      ],),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: _problemIdController,
-                          decoration: const InputDecoration(
-                            labelText: 'Enter Problem Name/ID',
-                            border: OutlineInputBorder(),
-                          ),
-                          onSubmitted: (value) {
-                            _page = 1;
-                            _getProblems();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            Widget buildList() {
-              return Card(
-                color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          if (_page > 1)
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _page = _page - 1;
-                                  _getProblems();
-                                });
-                              },
-                              child: const Icon(Icons.arrow_back),
-                            )
-                          else
-                            const SizedBox(width: 60),
-                          Text(
-                            'Page $_page/${(_problems_cnt / 10).ceil()}',
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                          if (_page * 10 < _problems_cnt)
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _page = _page + 1;
-                                  _getProblems();
-                                });
-                              },
-                              child: const Icon(Icons.arrow_forward),
-                            )
-                          else
-                            const SizedBox(width: 60),
-                        ],
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: _render(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            if (isLandscape) {
-              // 横向布局：左侧题目列表，右侧过滤器
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 左侧：题目列表（占剩余空间）
-                  Expanded(
-                    child: buildList(),
-                  ),
-                  // 拖拽把手（垂直条）
-                  GestureDetector(
-                    onHorizontalDragUpdate: (details) {
-                      setState(() {
-                        _splitRatio -= details.delta.dx / maxWidth;
-                        _splitRatio = _splitRatio.clamp(0.0, maxSplit);
-                      });
-                    },
-                    onTap: () {
-                      setState(() {
-                        _splitRatio = _splitRatio < 0.15 ? 0.3 : 0.0;
-                      });
-                    },
-                    child: Container(
-                      width: 20,
-                      color: Theme.of(context).colorScheme.surface,
-                      child: const Center(
-                        child: RotatedBox(
-                          quarterTurns: 1, // 旋转把手图标，使其适合横向拖拽
-                          child: Icon(Icons.drag_handle),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // 右侧：过滤器（宽度根据比例）
-                  if (_splitRatio > 0)
-                    SizedBox(
-                      width: maxWidth * _splitRatio,
-                      child: buildFilter(),
-                    ),
-                ],
-              );
-            } else {
-              // 纵向布局：上部过滤器，下部题目列表
-              return Column(
-                children: [
-                  // 上部：过滤器
-                  SizedBox(
-                    height: maxHeight * _splitRatio,
-                    child: buildFilter(),
-                  ),
-                  // 拖拽把手（水平条）
-                  GestureDetector(
-                    onVerticalDragUpdate: (details) {
-                      setState(() {
-                        _splitRatio += details.delta.dy / maxHeight;
-                        _splitRatio = _splitRatio.clamp(0.0, maxSplit);
-                      });
-                    },
-                    onTap: () {
-                      setState(() {
-                        _splitRatio = _splitRatio < 0.15 ? 0.3 : 0.0;
-                      });
-                    },
-                    child: Container(
-                      height: 20,
-                      color: Theme.of(context).colorScheme.surface,
-                      child: const Center(
-                        child: Icon(Icons.drag_handle),
-                      ),
-                    ),
-                  ),
-                  // 下部：题目列表（占剩余空间）
-                  Expanded(
-                    child: buildList(),
-                  ),
-                ],
-              );
-            }
-          },
-        ),
-      ),
+    return ScreenSplitter(
+      childA: _buildList(), 
+      childB: _buildFilter(),
     );
   }
 }

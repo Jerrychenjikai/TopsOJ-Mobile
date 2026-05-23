@@ -12,6 +12,7 @@ import 'package:TopsOJ/basic_func.dart';
 import 'dart:io';
 import "package:TopsOJ/login_page.dart";
 import 'package:TopsOJ/ranking_animation.dart';
+import 'package:TopsOJ/template.dart';
 
 
 // 题目页面
@@ -44,7 +45,13 @@ class _ProblemPageState extends State<ProblemPage> {
   bool _isCached = false;
   bool _successfully_loaded = false;
 
+  String _activated_tool = "none";
+
   List<Widget> _rendered=[];
+
+  Widget _buildTool(){
+    return Center(child: const Text("This is a tool"));
+  }
 
   Future<void> _loadProblemData() async {
     _isCached = await is_cached(widget.problemId);
@@ -320,6 +327,34 @@ class _ProblemPageState extends State<ProblemPage> {
           children: _rendered,
         );
 
+        final _submit_section = Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  decoration: const InputDecoration(
+                    hintText: 'Answer',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  onSubmitted: (value){
+                    _submit();
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              FloatingActionButton(
+                onPressed: _submit,
+                tooltip: 'Submit',
+                child: const Icon(Icons.send),
+                mini: true,
+              ),
+            ],
+          ),
+        );
+
         // 构建主体内容（不包含Scaffold/AppBar的部分）
         final bodyContent = Column(
           children: [
@@ -370,35 +405,13 @@ class _ProblemPageState extends State<ProblemPage> {
                   ],
                 ),
               ),
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: const InputDecoration(
-                        hintText: 'Answer',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      onSubmitted: (value){
-                        _submit();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  FloatingActionButton(
-                    onPressed: _submit,
-                    tooltip: 'Submit',
-                    child: const Icon(Icons.send),
-                    mini: true,
-                  ),
-                ],
-              ),
-            ),
+            if(widget.isEmbedded) _submit_section,
           ],
         );
+
+        var splitBodyContent = _activated_tool == 'none' ? 
+                               ScreenSplitter(childA: bodyContent,) :
+                               ScreenSplitter(childA: bodyContent, childB: _buildTool());
 
         // 根据isEmbedded决定是否包裹Scaffold和AppBar
         if (widget.isEmbedded) {
@@ -428,7 +441,18 @@ class _ProblemPageState extends State<ProblemPage> {
                   ],
                 ),
               ),
-              body: bodyContent,
+              body: splitBodyContent,
+
+              bottomNavigationBar: _submit_section,
+
+              floatingActionButton: FloatingActionButton(
+                onPressed: () {
+                  setState((){
+                    _activated_tool = "something";
+                  });
+                },
+                child: const Icon(Icons.add),
+              ),
             ),
           );
         }
