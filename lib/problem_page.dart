@@ -48,12 +48,15 @@ class _ProblemPageState extends State<ProblemPage> {
   String _activated_tool = "none";
 
   List<Widget> _rendered=[];
+  String _loaded_problem_id = "none";
 
   Widget _buildTool(){
     return Center(child: const Text("This is a tool"));
   }
 
   Future<void> _loadProblemData() async {
+    if(_loaded_problem_id == widget.problemId) return;
+
     _isCached = await is_cached(widget.problemId);
     final prefs = await SharedPreferences.getInstance();
     final apiKey = prefs.getString('apiKey') ?? "";
@@ -102,6 +105,7 @@ class _ProblemPageState extends State<ProblemPage> {
     _prev = _canPrev ? markdownJson['data']['prev'].replaceFirst('/problem/', '') : "";
     _isSolved = await checkSolved(widget.problemId);
     _successfully_loaded = true;
+    _loaded_problem_id = widget.problemId;
 
     _parseContent(_markdownData);
   }
@@ -313,7 +317,7 @@ class _ProblemPageState extends State<ProblemPage> {
     return FutureBuilder(
       future: _loadProblemData(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done && _loaded_problem_id!=widget.problemId) {
           return widget.isEmbedded
               ? const Center(child: CircularProgressIndicator()) // 嵌入时只显示加载指示器
               : Scaffold(

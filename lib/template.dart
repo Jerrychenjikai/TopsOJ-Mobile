@@ -41,7 +41,7 @@ class _ScreenSplitterState extends State<ScreenSplitter> {
             const maxSplit = 0.5;
 
             if (isLandscape) {
-              // 横向布局：左侧题目列表，右侧过滤器
+              // 横向布局
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -82,7 +82,7 @@ class _ScreenSplitterState extends State<ScreenSplitter> {
                 ],
               );
             } else {
-              // 纵向布局：上部过滤器，下部题目列表
+              // 纵向布局
               return Column(
                 children: [
                   // 上部：高度根据比例

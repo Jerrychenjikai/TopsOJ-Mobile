@@ -265,7 +265,7 @@ class _MainPageState extends ConsumerState<MainPage> {
         ],
       ),
       floatingActionButton: SpeedDial(
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.keyboard_arrow_up),
         // 展开时的图标（常用来放 ×）
         closeManually: false,
         activeChild: const Icon(Icons.close),
