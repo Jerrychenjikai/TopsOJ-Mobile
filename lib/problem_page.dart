@@ -6,6 +6,7 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
@@ -51,7 +52,7 @@ class _ProblemPageState extends State<ProblemPage> {
   String _loaded_problem_id = "none";
 
   Widget _buildTool(){
-    return Center(child: const Text("This is a tool"));
+    return Center(child: Text("This is a ${_activated_tool}"));
   }
 
   Future<void> _loadProblemData() async {
@@ -363,19 +364,6 @@ class _ProblemPageState extends State<ProblemPage> {
         final bodyContent = Column(
           children: [
             Expanded(child: content),
-            if(!_isCached & _successfully_loaded & !widget.isEmbedded) 
-              ElevatedButton(
-                onPressed: () async {
-                  setState(() async {
-                    await cache(widget.problemId, _problemName, _markdownData, _nxt, _prev);
-                    _isCached=true;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Problem Cached')),
-                  );
-                },
-                child: const Text('Cache this problem'),
-              ),
             if ((_canPrev || _canNxt) && !widget.isEmbedded)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -449,13 +437,44 @@ class _ProblemPageState extends State<ProblemPage> {
 
               bottomNavigationBar: _submit_section,
 
-              floatingActionButton: FloatingActionButton(
-                onPressed: () {
-                  setState((){
-                    _activated_tool = "something";
-                  });
-                },
-                child: const Icon(Icons.add),
+              floatingActionButton: SpeedDial(
+                child: const Icon(Icons.keyboard_arrow_up),
+                closeManually: false,
+                activeChild: const Icon(Icons.close),
+                direction: SpeedDialDirection.up,
+                animationCurve: Curves.easeInOutCubic,
+                overlayColor: Theme.of(context).colorScheme.secondary,
+                overlayOpacity: 0.4,
+                spacing: 8,
+                spaceBetweenChildren: 12,
+                children: [
+                  SpeedDialChild(
+                    child: const Icon(Icons.save),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                    foregroundColor: Colors.black,
+                    label: 'Cache this problem',
+                    onTap: () async {
+                      setState(() async {
+                        await cache(widget.problemId, _problemName, _markdownData, _nxt, _prev);
+                        _isCached=true;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Problem Cached')),
+                      );
+                    },
+                  ),
+                  SpeedDialChild(
+                    child: const Icon(Icons.calculate),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                    foregroundColor: Colors.black,
+                    label: 'Calculator',
+                    onTap: () {
+                      setState((){
+                        _activated_tool = "calculator";
+                      });
+                    },
+                  ),
+                ],
               ),
             ),
           );
