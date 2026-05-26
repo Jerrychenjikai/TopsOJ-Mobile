@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:flutter_simple_calculator/flutter_simple_calculator.dart';
 
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
@@ -47,12 +48,34 @@ class _ProblemPageState extends State<ProblemPage> {
   bool _successfully_loaded = false;
 
   String _activated_tool = "none";
+  double? _current_calculator_value = 0;
 
   List<Widget> _rendered=[];
   String _loaded_problem_id = "none";
 
-  Widget _buildTool(){
-    return Center(child: Text("This is a ${_activated_tool}"));
+  Widget? _buildTool(){
+    if(_activated_tool == "calculator"){
+      return Column(
+        children: [
+          Expanded(
+            child: SimpleCalculator(
+              value: _current_calculator_value ?? 0,
+              hideExpression: false, // 是否隐藏顶部的计算表达式
+              hideSurroundingBorder: true,
+              autofocus: true,
+              onChanged: (key, value, expression) {
+                setState(() {
+                  _current_calculator_value = value; // 实时获取计算结果
+                });
+              },
+            ),
+          ),
+        ],
+      );
+    }
+    else{
+      return null;
+    }
   }
 
   Future<void> _loadProblemData() async {
@@ -401,9 +424,7 @@ class _ProblemPageState extends State<ProblemPage> {
           ],
         );
 
-        var splitBodyContent = _activated_tool == 'none' ? 
-                               ScreenSplitter(childA: bodyContent,) :
-                               ScreenSplitter(childA: bodyContent, childB: _buildTool());
+        var splitBodyContent = ScreenSplitter(childA: bodyContent, childB: _buildTool());
 
         // 根据isEmbedded决定是否包裹Scaffold和AppBar
         if (widget.isEmbedded) {
