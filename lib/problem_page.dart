@@ -60,7 +60,7 @@ class _ProblemPageState extends State<ProblemPage> {
           Expanded(
             child: SimpleCalculator(
               value: _current_calculator_value ?? 0,
-              hideExpression: false, // 是否隐藏顶部的计算表达式
+              hideExpression: false,
               hideSurroundingBorder: true,
               autofocus: true,
               onChanged: (key, value, expression) {
