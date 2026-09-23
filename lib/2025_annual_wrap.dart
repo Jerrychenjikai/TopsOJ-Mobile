@@ -256,24 +256,34 @@ class _AnnualReportPageState extends State<AnnualReportPage> with TickerProvider
                 return const InactivePage();
               }
               final reportData = AnnualReportData.fromJson(data);
-              return Stack(
-                children: [
-                  BackgroundAnimation(scrollOffset: _scrollOffset, animation: _animationController.view),
-                  PageView(
-                    controller: _pageController,
-                    scrollDirection: Axis.vertical,
-                    children: [
-                      HeroPage(reportData: reportData),
-                      SolverPersonaPage(reportData: reportData),
-                      TopPercentilePage(reportData: reportData),
-                      MostAttemptedPage(reportData: reportData),
-                      RatingHighsPage(reportData: reportData),
-                      ContestHighlightsPage(reportData: reportData),
-                      TimelinePage(reportData: reportData),
-                      SummaryPage(reportData: reportData),
-                    ],
-                  ),
-                ],
+              final backgroundPainter = BackgroundPainter(
+                animation: _animationController,
+                scrollOffset: _scrollOffset,
+              );
+
+              return LiquidGlassScope(
+                painter: backgroundPainter,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: CustomPaint(painter: backgroundPainter),
+                    ),
+                    PageView(
+                      controller: _pageController,
+                      scrollDirection: Axis.vertical,
+                      children: [
+                        HeroPage(reportData: reportData),
+                        SolverPersonaPage(reportData: reportData),
+                        TopPercentilePage(reportData: reportData),
+                        MostAttemptedPage(reportData: reportData),
+                        RatingHighsPage(reportData: reportData),
+                        ContestHighlightsPage(reportData: reportData),
+                        TimelinePage(reportData: reportData),
+                        SummaryPage(reportData: reportData),
+                      ],
+                    ),
+                  ],
+                ),
               );
             },
           ),
@@ -289,32 +299,39 @@ class LoadingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const backgroundPainter = BackgroundPainter(
+      animation: AlwaysStoppedAnimation(0.5),
+      scrollOffset: 0.0,
+    );
+
     return Scaffold(
-      body: Stack(
-        children: [
-          const BackgroundAnimation(
-            animation: AlwaysStoppedAnimation(0.5), 
-            scrollOffset: 0.0,
-          ),
-          const Center(
-            child: GlassPanel(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Loading your year in review...',
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 16),
-                    Text('Charging the glassmorphic engines and calculating your glow.'),
-                  ],
+      body: LiquidGlassScope(
+        painter: backgroundPainter,
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: CustomPaint(painter: backgroundPainter),
+            ),
+            const Center(
+              child: GlassPanel(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Loading your year in review...',
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 16),
+                      Text('Charging the glassmorphic engines and calculating your glow.'),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -326,162 +343,251 @@ class InactivePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const backgroundPainter = BackgroundPainter(
+      animation: AlwaysStoppedAnimation(0.5),
+      scrollOffset: 0.0,
+    );
+
     return Scaffold(
-      body: Stack(
-        children: [
-          const BackgroundAnimation(
-            animation: AlwaysStoppedAnimation(0.5), 
-            scrollOffset: 0.0,
-          ),
-          Center(
-            child: GlassPanel(
-              child: Padding(
-                padding: const EdgeInsets.all(40),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'No Wrapped for this year',
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'You were inactive this year, so there isn\'t a TopsOJ Wrapped to show yet.\n'
-                      'Jump back in and we\'ll be ready for the next one!',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Start Solving'),
-                    ),
-                  ],
+      body: LiquidGlassScope(
+        painter: backgroundPainter,
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: CustomPaint(painter: backgroundPainter),
+            ),
+            Center(
+              child: GlassPanel(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'No Wrapped for this year',
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'You were inactive this year, so there isn\'t a TopsOJ Wrapped to show yet.\n'
+                        'Jump back in and we\'ll be ready for the next one!',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Start Solving'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// Background with bubbles and orbs
-class BackgroundAnimation extends AnimatedWidget {
+// Background painter used by both the visible background and LiquidGlassScope.
+//
+// The animation is supplied as a repaint Listenable, so the visible background
+// keeps animating without rebuilding the whole page. The painter itself remains
+// immutable; changes such as scrollOffset create a new painter instance, which
+// LiquidGlassScope can detect through shouldRepaint() and use to refresh its
+// shared background snapshot.
+class BackgroundPainter extends CustomPainter {
+  final Animation<double> animation;
   final double scrollOffset;
 
-  const BackgroundAnimation({super.key, required Animation<double> animation, required this.scrollOffset})
-      : super(listenable: animation);
+  const BackgroundPainter({
+    required this.animation,
+    required this.scrollOffset,
+  }) : super(repaint: animation);
 
   @override
-  Widget build(BuildContext context) {
-    final animationValue = (listenable as Animation<double>).value * 2 * pi;
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
+  void paint(Canvas canvas, Size size) {
+    final animationValue = animation.value * 2 * pi;
+    final rect = Offset.zero & size;
+
+    // Base background.
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = const RadialGradient(
           center: Alignment.topCenter,
           colors: [Color(0x99781A24), Color(0xFA0C0A0F)],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0.2, 0.2),
-                colors: [const Color(0x26F7B3D7), Colors.transparent],
-                stops: const [0.0, 0.55],
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0.75, 0.35),
-                colors: [const Color(0x2D89F2FF), Colors.transparent],
-                stops: const [0.0, 0.6],
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0.45, 0.8),
-                colors: [const Color(0x1FFFCC7A), Colors.transparent],
-                stops: const [0.0, 0.55],
-              ),
-            ),
-          ),
-          _buildBubble(context, top: -60, leftPct: 6, size: 220, duration: 22, animationValue: animationValue, scrollOffset: scrollOffset),
-          _buildBubble(context, top: 18, rightPct: 10, size: 280, duration: 28, animationValue: animationValue, scrollOffset: scrollOffset),
-          _buildBubble(context, top: 55, leftPct: 2, size: 180, duration: 24, animationValue: animationValue, scrollOffset: scrollOffset),
-          _buildBubble(context, bottom: -60, rightPct: 18, size: 240, duration: 26, animationValue: animationValue, scrollOffset: scrollOffset),
-          _buildBubble(context, top: 38, leftPct: 45, size: 140, duration: 20, animationValue: animationValue, scrollOffset: scrollOffset),
-          _buildBubble(context, bottom: 20, rightPct: 40, size: 120, duration: 19, animationValue: animationValue, scrollOffset: scrollOffset),
-          _buildOrb(context, top: 10, leftPct: 60, size: 320, delay: -3, animationValue: animationValue, scrollOffset: scrollOffset),
-          _buildOrb(context, bottom: 8, leftPct: 12, size: 260, delay: -9, animationValue: animationValue, scrollOffset: scrollOffset),
-        ],
-      ),
+        ).createShader(rect),
+    );
+
+    // Large atmospheric glows.
+    _drawFullScreenGlow(
+      canvas,
+      size,
+      Alignment(0.2, 0.2),
+      const [Color(0x26F7B3D7), Colors.transparent],
+      const [0.0, 0.55],
+    );
+    _drawFullScreenGlow(
+      canvas,
+      size,
+      Alignment(0.75, 0.35),
+      const [Color(0x2D89F2FF), Colors.transparent],
+      const [0.0, 0.6],
+    );
+    _drawFullScreenGlow(
+      canvas,
+      size,
+      Alignment(0.45, 0.8),
+      const [Color(0x1FFFCC7A), Colors.transparent],
+      const [0.0, 0.55],
+    );
+
+    // Bubbles.
+    _drawBubble(canvas, size,
+        top: -60, leftPct: 6, size: 220, duration: 22,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+    _drawBubble(canvas, size,
+        top: 18, rightPct: 10, size: 280, duration: 28,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+    _drawBubble(canvas, size,
+        top: 55, leftPct: 2, size: 180, duration: 24,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+    _drawBubble(canvas, size,
+        bottom: -60, rightPct: 18, size: 240, duration: 26,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+    _drawBubble(canvas, size,
+        top: 38, leftPct: 45, size: 140, duration: 20,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+    _drawBubble(canvas, size,
+        bottom: 20, rightPct: 40, size: 120, duration: 19,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+
+    // Orbs.
+    _drawOrb(canvas, size,
+        top: 10, leftPct: 60, size: 320, delay: -3,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+    _drawOrb(canvas, size,
+        bottom: 8, leftPct: 12, size: 260, delay: -9,
+        animationValue: animationValue, scrollOffset: scrollOffset);
+  }
+
+  void _drawFullScreenGlow(
+    Canvas canvas,
+    Size size,
+    Alignment center,
+    List<Color> colors,
+    List<double> stops,
+  ) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          center: center,
+          colors: colors,
+          stops: stops,
+        ).createShader(rect),
     );
   }
 
-  Widget _buildBubble(BuildContext context, {
-    double? top, double? leftPct, double? rightPct, double? bottom,
-    required double size, required double duration, required double animationValue, required double scrollOffset,
+  void _drawBubble(
+    Canvas canvas,
+    Size viewport, {
+    double? top,
+    double? leftPct,
+    double? rightPct,
+    double? bottom,
+    required double size,
+    required double duration,
+    required double animationValue,
+    required double scrollOffset,
   }) {
-    final depth = (duration - 18) * 0.005; 
+    final depth = (duration - 18) * 0.005;
     final parallax = scrollOffset * depth;
     final yOffset = sin(animationValue / duration) * 30 + parallax;
-    double? left, right;
-    if (leftPct != null) left = MediaQuery.of(context).size.width * leftPct / 100;
-    if (rightPct != null) right = MediaQuery.of(context).size.width * rightPct / 100;
-    return Positioned(
-      top: top != null ? top + yOffset : null,
-      left: left,
-      right: right,
-      bottom: bottom != null ? bottom + yOffset : null,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const RadialGradient(
-            center: Alignment(0.3, 0.3),
-            colors: [Color(0xB3FFFFFF), Color(0x0AFFFFFF)],
-          ),
-          boxShadow: const [BoxShadow(color: Color(0x26FFFFFF), blurRadius: 35)],
-        ),
-        child: null,
-      ),
+
+    double x;
+    if (leftPct != null) {
+      x = viewport.width * leftPct / 100;
+    } else {
+      x = viewport.width - viewport.width * (rightPct ?? 0) / 100 - size;
+    }
+
+    double y;
+    if (top != null) {
+      y = top + yOffset;
+    } else {
+      // Match Positioned(bottom: bottom + yOffset).
+      y = viewport.height - (bottom ?? 0) - size - yOffset;
+    }
+
+    final center = Offset(x + size / 2, y + size / 2);
+    final circleRect = Rect.fromCircle(center: center, radius: size / 2);
+
+    // Soft shadow from the original BoxShadow.
+    canvas.drawCircle(
+      center,
+      size / 2,
+      Paint()
+        ..color = const Color(0x26FFFFFF)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 35),
+    );
+
+    canvas.drawCircle(
+      center,
+      size / 2,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0.3, 0.3),
+          colors: [Color(0xB3FFFFFF), Color(0x0AFFFFFF)],
+        ).createShader(circleRect),
     );
   }
 
-  Widget _buildOrb(BuildContext context, {
-    double? top, double? leftPct, double? bottom, required double size, required double delay, required double animationValue, required double scrollOffset,
+  void _drawOrb(
+    Canvas canvas,
+    Size viewport, {
+    double? top,
+    double? leftPct,
+    double? bottom,
+    required double size,
+    required double delay,
+    required double animationValue,
+    required double scrollOffset,
   }) {
     final yOffset = sin((animationValue + delay) / 24) * 25 + scrollOffset * 0.02;
     final xOffset = cos((animationValue + delay) / 24) * 20;
-    double? left;
-    if (leftPct != null) left = MediaQuery.of(context).size.width * leftPct / 100;
-    return Positioned(
-      top: top != null ? top + yOffset : null,
-      left: left != null ? left + xOffset : null,
-      bottom: bottom != null ? bottom + yOffset : null,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const RadialGradient(
-            center: Alignment(0.35, 0.35),
-            colors: [Color(0x37FFFFFF), Color(0x14F7B3D7), Colors.transparent],
-            stops: [0.0, 0.5, 0.7],
-          ),
-        ),
-      ),
+
+    final x = viewport.width * (leftPct ?? 0) / 100 + xOffset;
+    final y = top != null
+        ? top + yOffset
+        : viewport.height - (bottom ?? 0) - size - yOffset;
+
+    final center = Offset(x + size / 2, y + size / 2);
+    final circleRect = Rect.fromCircle(center: center, radius: size / 2);
+
+    canvas.drawCircle(
+      center,
+      size / 2,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0.35, 0.35),
+          colors: [Color(0x37FFFFFF), Color(0x14F7B3D7), Colors.transparent],
+          stops: [0.0, 0.5, 0.7],
+        ).createShader(circleRect),
     );
+  }
+
+  @override
+  bool shouldRepaint(covariant BackgroundPainter oldDelegate) {
+    // The animation itself is handled by repaint: animation. A new painter
+    // instance only needs a new snapshot when its positioning/state changes.
+    return oldDelegate.animation != animation ||
+        oldDelegate.scrollOffset != scrollOffset;
   }
 }
 
@@ -1027,82 +1133,77 @@ class SummaryPage extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: GlassPanel(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Your Wrapped Summary',
-                          style:
-                              TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-                      Text(summary, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children:[
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE84C78),
-                              shape: const StadiumBorder(),
-                            ),
-                            onPressed: () async {
-                              await Clipboard.setData(ClipboardData(text: summary));
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Summary copied!')));
-                              }
-                            },
-                            child: const Text('Copy Summary'),
+        return GlassPanel(
+          padding: const EdgeInsets.all(32),
+          child: SingleChildScrollView( // 滚动视图放在里面
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Your Wrapped Summary',
+                      style:
+                        TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    Text(summary, style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children:[
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE84C78),
+                            shape: const StadiumBorder(),
                           ),
-                          const SizedBox(width: 16),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE84C78),
-                              shape: const StadiumBorder(),
-                            ),
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            child: const Text('Back'),
+                          onPressed: () async {
+                            await Clipboard.setData(ClipboardData(text: summary));
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Summary copied!')));
+                            }
+                          },
+                          child: const Text('Copy Summary'),
+                        ),
+                        const SizedBox(width: 16),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE84C78),
+                            shape: const StadiumBorder(),
                           ),
-                        ]
-                      ),
-                    ],
-                  ),
-
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 32),
-                      const Text('All Highlights:',
-                          style:
-                              TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-                      Text('Problems Solved: ${reportData.problemSolved} (${(reportData.problemSolvedPercent * 100).round()}% percentile)'),
-                      Text('Points Collected: ${reportData.pointGained} (${(reportData.pointGainedPercent * 100).round()}% percentile)'),
-                      Text('Days Activated: ${reportData.daysSpent}'),
-                      Text('Most Attempted Challenge: ${reportData.mostAttemptedProblemName ?? "--"} (${reportData.numAttemptsMostAttempted} attempts)'),
-                      Text('Highest Rating: ${reportData.highestRating > 0 ? reportData.highestRating : "Unrated"}'),
-                      Text('Highest Rating Contest: ${reportData.highestRatingContestName ?? "--"}'),
-                      Text('Highest Rating Ranking: #${reportData.highestRatingRanking}'),
-                      Text('Contests Participated: ${reportData.numContestParticipated}'),
-                      Text('Highest Contest Ranking: #${reportData.highestContestRanking}'),
-                      Text('Highest Ranking Contest: ${reportData.highestRankingContestName ?? "--"}'),
-                      Text('Most Active Day: $reportYear.${reportData.mostActiveDate ?? "--"} (${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points)'),
-                      Text('Most Active Month: ${monthNames[reportData.mostActiveMonth] ?? "--"} (${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points)'),
-                      Text('Earliest Win: At ${reportData.earliestSubmission ?? "--"}, solved ${reportData.earliestSubmitProblemName ?? "--"}'),
-                    ],
-                  ),
-                ],
-              ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Back'),
+                        ),
+                      ]
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 32),
+                    const Text('All Highlights:',
+                        style:
+                            TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    Text('Problems Solved: ${reportData.problemSolved} (${(reportData.problemSolvedPercent * 100).round()}% percentile)'),
+                    Text('Points Collected: ${reportData.pointGained} (${(reportData.pointGainedPercent * 100).round()}% percentile)'),
+                    Text('Days Activated: ${reportData.daysSpent}'),
+                    Text('Most Attempted Challenge: ${reportData.mostAttemptedProblemName ?? "--"} (${reportData.numAttemptsMostAttempted} attempts)'),
+                    Text('Highest Rating: ${reportData.highestRating > 0 ? reportData.highestRating : "Unrated"}'),
+                    Text('Highest Rating Contest: ${reportData.highestRatingContestName ?? "--"}'),
+                    Text('Highest Rating Ranking: #${reportData.highestRatingRanking}'),
+                    Text('Contests Participated: ${reportData.numContestParticipated}'),
+                    Text('Highest Contest Ranking: #${reportData.highestContestRanking}'),
+                    Text('Highest Ranking Contest: ${reportData.highestRankingContestName ?? "--"}'),
+                    Text('Most Active Day: $reportYear.${reportData.mostActiveDate ?? "--"} (${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points)'),
+                    Text('Most Active Month: ${monthNames[reportData.mostActiveMonth] ?? "--"} (${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points)'),
+                    Text('Earliest Win: At ${reportData.earliestSubmission ?? "--"}, solved ${reportData.earliestSubmitProblemName ?? "--"}'),
+                  ],
+                ),
+              ],
             ),
           ),
         );
