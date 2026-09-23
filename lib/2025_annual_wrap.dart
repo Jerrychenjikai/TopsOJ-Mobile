@@ -305,33 +305,28 @@ class LoadingPage extends StatelessWidget {
     );
 
     return Scaffold(
-      body: LiquidGlassScope(
-        painter: backgroundPainter,
-        child: Stack(
-          children: [
-            const Positioned.fill(
-              child: CustomPaint(painter: backgroundPainter),
-            ),
-            const Center(
-              child: GlassPanel(
-                child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Loading your year in review...',
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 16),
-                      Text('Charging the glassmorphic engines and calculating your glow.'),
-                    ],
+      body: Stack(
+        children: [
+          const Positioned.fill(
+            child: CustomPaint(painter: backgroundPainter),
+          ),
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Loading your year in review...',
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  SizedBox(height: 16),
+                  Text('Charging the glassmorphic engines and calculating your glow.'),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -21,10 +21,13 @@ import 'package:TopsOJ/bluetooth_compete.dart';
 import 'package:TopsOJ/problems_page.dart';
 import 'package:TopsOJ/home_page.dart';
 import 'package:TopsOJ/index_providers.dart';
+import 'basic/ui_basic.dart';
 
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();  
+  // 提前加载好 Shader
+  await preloadLiquidGlassShader();
   PackageInfo packageInfo = await PackageInfo.fromPlatform();
   runApp(const ProviderScope(child: TopsOJ()));
 }
