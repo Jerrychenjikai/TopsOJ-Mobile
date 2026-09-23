@@ -12,6 +12,9 @@ import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
 import 'package:TopsOJ/problem_page.dart';
 
+// 引入液态玻璃组件定义
+import 'basic/ui_basic.dart'; 
+
 // Assume the base URL for API, replace with actual domain
 const String baseUrl = 'https://topsoj.com'; // Replace with actual domain
 const int reportYear = 2025; // Or get from context, here hardcoded as example
@@ -289,15 +292,10 @@ class LoadingPage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // 背景動畫 - 需要傳入 Animation
-          // 這裡假設你已經在父層級有 AnimationController
-          // 如果沒有，請參考下面「重要注意事項」
           const BackgroundAnimation(
-            animation: AlwaysStoppedAnimation(0.5), // 臨時替代，正式請用真的動畫
+            animation: AlwaysStoppedAnimation(0.5), 
             scrollOffset: 0.0,
           ),
-          
-          // 主要內容（保持置中）
           const Center(
             child: GlassPanel(
               child: Padding(
@@ -331,13 +329,10 @@ class InactivePage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // 同樣的背景
           const BackgroundAnimation(
-            animation: AlwaysStoppedAnimation(0.5), // 臨時替代
+            animation: AlwaysStoppedAnimation(0.5), 
             scrollOffset: 0.0,
           ),
-          
-          // 主要內容
           Center(
             child: GlassPanel(
               child: Padding(
@@ -392,7 +387,6 @@ class BackgroundAnimation extends AnimatedWidget {
       ),
       child: Stack(
         children: [
-          // Gradient overlays
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -420,14 +414,12 @@ class BackgroundAnimation extends AnimatedWidget {
               ),
             ),
           ),
-          // Bubbles
           _buildBubble(context, top: -60, leftPct: 6, size: 220, duration: 22, animationValue: animationValue, scrollOffset: scrollOffset),
           _buildBubble(context, top: 18, rightPct: 10, size: 280, duration: 28, animationValue: animationValue, scrollOffset: scrollOffset),
           _buildBubble(context, top: 55, leftPct: 2, size: 180, duration: 24, animationValue: animationValue, scrollOffset: scrollOffset),
           _buildBubble(context, bottom: -60, rightPct: 18, size: 240, duration: 26, animationValue: animationValue, scrollOffset: scrollOffset),
           _buildBubble(context, top: 38, leftPct: 45, size: 140, duration: 20, animationValue: animationValue, scrollOffset: scrollOffset),
           _buildBubble(context, bottom: 20, rightPct: 40, size: 120, duration: 19, animationValue: animationValue, scrollOffset: scrollOffset),
-          // Orbs
           _buildOrb(context, top: 10, leftPct: 60, size: 320, delay: -3, animationValue: animationValue, scrollOffset: scrollOffset),
           _buildOrb(context, bottom: 8, leftPct: 12, size: 260, delay: -9, animationValue: animationValue, scrollOffset: scrollOffset),
         ],
@@ -439,7 +431,7 @@ class BackgroundAnimation extends AnimatedWidget {
     double? top, double? leftPct, double? rightPct, double? bottom,
     required double size, required double duration, required double animationValue, required double scrollOffset,
   }) {
-    final depth = (duration - 18) * 0.005; // Approximate index-based depth
+    final depth = (duration - 18) * 0.005; 
     final parallax = scrollOffset * depth;
     final yOffset = sin(animationValue / duration) * 30 + parallax;
     double? left, right;
@@ -493,6 +485,7 @@ class BackgroundAnimation extends AnimatedWidget {
   }
 }
 
+// 采用 ui_basic 中的 LiquidGlassContainer 重构原有的磨砂组件
 class GlassPanel extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -514,53 +507,13 @@ class GlassPanel extends StatelessWidget {
     return SafeArea(
       minimum: safeAreaMinimum,
       child: Padding(
-        // 这里给一个水平的 page padding（如果你想要紧贴边缘可以把 horizontal 设置为 0）
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: SizedBox(
-          width: double.infinity, // <- 关键：让 panel 横向撑满可用空间
-          child: Container(
-            // 外层负责 gradient 描边（完整包裹圆角）
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(borderRadius),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0x66FFFFFF),
-                  Color(0x22FFFFFF),
-                  Color(0x11FFFFFF),
-                ],
-              ),
-            ),
-            padding: EdgeInsets.all(borderWidth),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(borderRadius - borderWidth),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-                child: Container(
-                  width: double.infinity,
-                  padding: padding,
-                  decoration: BoxDecoration(
-                    color: const Color(0x1AFFFFFF),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0x2DFFFFFF), Color(0x14FFFFFF)],
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x730C0914),
-                        blurRadius: 60,
-                        offset: Offset(0, 20),
-                      ),
-                    ],
-                    borderRadius:
-                        BorderRadius.circular(borderRadius - borderWidth),
-                  ),
-                  child: child,
-                ),
-              ),
-            ),
+        child: LiquidGlassContainer(
+          width: double.infinity, 
+          borderRadius: borderRadius,
+          child: Padding(
+            padding: padding,
+            child: child,
           ),
         ),
       ),
@@ -620,7 +573,6 @@ class HeroPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header block
           Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -650,19 +602,16 @@ class HeroPage extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // Responsive grid: 使用 Expanded 包裹 GridView 以填充剩余高度
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // 这里用 maxCrossAxisExtent 控制每个卡片的最大宽度（窗口越宽，列数自动增加）
-                // 调整 maxCrossAxisExtent 与 childAspectRatio 以匹配你的卡片视觉比例
                 return GridView(
                   padding: EdgeInsets.zero,
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 520, // 每格最大宽度（改这个值来控制列数断点）
+                    maxCrossAxisExtent: 520, 
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    childAspectRatio: 2.2, // 宽高比，按需要调整
+                    childAspectRatio: 2.2, 
                   ),
                   children: items,
                 );
@@ -1080,12 +1029,10 @@ class SummaryPage extends StatelessWidget {
       builder: (context, constraints) {
         return SingleChildScrollView(
           child: ConstrainedBox(
-            // 关键：确保子部件最小高度为可用高度 -> 可以撑满屏幕
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: GlassPanel(
               padding: const EdgeInsets.all(32),
               child: Column(
-                // 让 Column 占据 ConstrainedBox 给定的最小高度
                 mainAxisSize: MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
