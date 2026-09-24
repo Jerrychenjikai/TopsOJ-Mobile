@@ -16,6 +16,167 @@ import "package:TopsOJ/login_page.dart";
 import 'package:TopsOJ/ranking_animation.dart';
 import 'package:TopsOJ/template.dart';
 
+/// 题目详情数据模型 (Data Class)
+class ProblemDetail {
+  final String problemId;
+  final String name;
+  final String markdownData;
+  final bool canNxt;
+  final bool canPrev;
+  final String nxt;
+  final String prev;
+  final bool isSolved;
+  final bool isCached;
+
+  ProblemDetail({
+    required this.problemId,
+    required this.name,
+    required this.markdownData,
+    required this.canNxt,
+    required this.canPrev,
+    required this.nxt,
+    required this.prev,
+    required this.isSolved,
+    required this.isCached,
+  });
+
+  ProblemDetail copyWith({
+    String? problemId,
+    String? name,
+    String? markdownData,
+    bool? canNxt,
+    bool? canPrev,
+    String? nxt,
+    String? prev,
+    bool? isSolved,
+    bool? isCached,
+  }) {
+    return ProblemDetail(
+      problemId: problemId ?? this.problemId,
+      name: name ?? this.name,
+      markdownData: markdownData ?? this.markdownData,
+      canNxt: canNxt ?? this.canNxt,
+      canPrev: canPrev ?? this.canPrev,
+      nxt: nxt ?? this.nxt,
+      prev: prev ?? this.prev,
+      isSolved: isSolved ?? this.isSolved,
+      isCached: isCached ?? this.isCached,
+    );
+  }
+}
+
+/// 提交结果提示弹窗（带有出现动画）
+class SubmissionResultDialog extends StatefulWidget {
+  final Map<String, dynamic> response;
+
+  const SubmissionResultDialog({super.key, required this.response});
+
+  @override
+  State<SubmissionResultDialog> createState() => _SubmissionResultDialogState();
+}
+
+class _SubmissionResultDialogState extends State<SubmissionResultDialog> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    // 图标弹簧放大效果
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.elasticOut,
+    );
+
+    // 文字延迟渐变显示
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.4, 1.0, curve: Curves.easeIn),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusCode = widget.response['statusCode'];
+    final data = widget.response['data'];
+
+    Widget mainIcon;
+    Widget detailText = const SizedBox.shrink();
+
+    if (statusCode == 200) {
+      final bool check = data is Map ? (data['check'] ?? false) : false;
+      if (check) {
+        mainIcon = const Icon(Icons.check_circle, color: Colors.green, size: 90);
+        detailText = Column(
+          children: [
+            if (data['points_awarded'] != null)
+              Text(
+                '+${data['points_awarded']} Points',
+                style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            const SizedBox(height: 4),
+            if (data['new_streak'] != null)
+              Text(
+                'Streak: ${data['new_streak']}',
+                style: const TextStyle(color: Colors.green, fontSize: 14),
+              ),
+          ],
+        );
+      } else {
+        mainIcon = const Icon(Icons.cancel, color: Colors.red, size: 90);
+      }
+    } else {
+      mainIcon = Text(
+        '$statusCode',
+        style: const TextStyle(color: Colors.red, fontSize: 50, fontWeight: FontWeight.bold),
+      );
+      detailText = Text(
+        '${data ?? "Unknown Error"}',
+        style: const TextStyle(color: Colors.red, fontSize: 14),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 10,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ScaleTransition(
+              scale: _scaleAnimation,
+              child: mainIcon,
+            ),
+            if (statusCode != 200 || (statusCode == 200 && data is Map && data['check'] == true))
+              const SizedBox(height: 20),
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: detailText,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // 题目页面
 class ProblemPage extends StatefulWidget {
@@ -24,7 +185,7 @@ class ProblemPage extends StatefulWidget {
   final Function(bool passed)? onSubmitResult; // 提交结果回调函数（passed表示是否正确）
 
   const ProblemPage({
-    super.key, 
+    super.key,
     required this.problemId,
     this.isEmbedded = false,
     this.onSubmitResult,
@@ -37,24 +198,16 @@ class ProblemPage extends StatefulWidget {
 class _ProblemPageState extends State<ProblemPage> {
   final TextEditingController _controller = TextEditingController();
 
-  String _markdownData = "";
-  String _problemName = "";
-  bool _canNxt = false;
-  bool _canPrev = false;
-  String _nxt = "";
-  String _prev = "";
-  bool _isSolved = false;
-  bool _isCached = false;
-  bool _successfully_loaded = false;
+  // 封装后的题目详情模型
+  ProblemDetail? _problemDetail;
 
   String _activated_tool = "none";
   double? _current_calculator_value = 0;
 
-  List<Widget> _rendered=[];
-  String _loaded_problem_id = "none";
+  List<Widget> _rendered = [];
 
-  Widget? _buildTool(){
-    if(_activated_tool == "calculator"){
+  Widget? _buildTool() {
+    if (_activated_tool == "calculator") {
       return Column(
         children: [
           Expanded(
@@ -72,16 +225,15 @@ class _ProblemPageState extends State<ProblemPage> {
           ),
         ],
       );
-    }
-    else{
+    } else {
       return null;
     }
   }
 
   Future<void> _loadProblemData() async {
-    if(_loaded_problem_id == widget.problemId) return;
+    if (_problemDetail?.problemId == widget.problemId) return;
 
-    _isCached = await is_cached(widget.problemId);
+    bool isCached = await is_cached(widget.problemId);
     final prefs = await SharedPreferences.getInstance();
     final apiKey = prefs.getString('apiKey') ?? "";
     var markdownUrl;
@@ -89,73 +241,137 @@ class _ProblemPageState extends State<ProblemPage> {
     var markdownJson;
 
     // fetch markdown
-    try{
+    try {
       markdownUrl = Uri.parse('https://topsoj.com/api/publicproblem?id=${widget.problemId}');
       markdownResponse = await http.get(markdownUrl);
       markdownJson = jsonDecode(markdownResponse.body);
-    } catch(e){
-      if(await is_cached(widget.problemId)){
+    } catch (e) {
+      if (await is_cached(widget.problemId)) {
         var cachedinfo = (await cached_info(widget.problemId));
-        _markdownData = await readMarkdown(widget.problemId+'.md') ?? "Error: problem markdown not found. Delete this cached problem";
-        _problemName = cachedinfo['name'] ?? "Error: Problem not cached";
-        _nxt = cachedinfo['nxt'] ?? "";
-        _prev = cachedinfo['prev'] ?? "";
-        _canNxt = ((!_nxt.isEmpty) & (await is_cached(_nxt))) ? true : false;
-        _canPrev = ((!_prev.isEmpty) & (await is_cached(_prev))) ? true : false;
-        _isSolved = cachedinfo['correct']=='true' ? true : false;
-        _successfully_loaded = true;
+        String markdownData = await readMarkdown(widget.problemId + '.md') ?? "Error: problem markdown not found. Delete this cached problem";
+        String problemName = cachedinfo['name'] ?? "Error: Problem not cached";
+        String nxt = cachedinfo['nxt'] ?? "";
+        String prev = cachedinfo['prev'] ?? "";
+        bool canNxt = ((!nxt.isEmpty) & (await is_cached(nxt))) ? true : false;
+        bool canPrev = ((!prev.isEmpty) & (await is_cached(prev))) ? true : false;
+        bool isSolved = cachedinfo['correct'] == 'true' ? true : false;
 
-        _parseContent("[From local storage]\n"+_markdownData);
+        _problemDetail = ProblemDetail(
+          problemId: widget.problemId,
+          name: problemName,
+          markdownData: markdownData,
+          canNxt: canNxt,
+          canPrev: canPrev,
+          nxt: nxt,
+          prev: prev,
+          isSolved: isSolved,
+          isCached: true,
+        );
+
+        await _parseContent("[From local storage]\n" + markdownData);
 
         return;
-      }
-      else{
-        _markdownData="Network error";
+      } else {
+        _problemDetail = ProblemDetail(
+          problemId: widget.problemId,
+          name: "Network error",
+          markdownData: "Network error",
+          canNxt: false,
+          canPrev: false,
+          nxt: "",
+          prev: "",
+          isSolved: false,
+          isCached: false,
+        );
         return;
       }
     }
 
     if (markdownResponse.statusCode != 200) {
-      _markdownData="Markdown load failed: ${markdownResponse.statusCode} ${markdownJson['message']}";
+      _problemDetail = ProblemDetail(
+        problemId: widget.problemId,
+        name: "Error",
+        markdownData: "Markdown load failed: ${markdownResponse.statusCode} ${markdownJson['message']}",
+        canNxt: false,
+        canPrev: false,
+        nxt: "",
+        prev: "",
+        isSolved: false,
+        isCached: isCached,
+      );
       return;
     }
 
-    // set state in batch
-    _markdownData = markdownJson['data']['description_md'] ?? '';
-    _problemName = markdownJson['data']['problem_name'] ?? '';
-    _canNxt = markdownJson['data']['can_next'];
-    _canPrev = markdownJson['data']['can_prev'];
-    _nxt = _canNxt ? markdownJson['data']['nxt'].replaceFirst('/problem/', '') : "";
-    _prev = _canPrev ? markdownJson['data']['prev'].replaceFirst('/problem/', '') : "";
-    _isSolved = await checkSolved(widget.problemId);
-    _successfully_loaded = true;
-    _loaded_problem_id = widget.problemId;
+    // 设置组合好的 ProblemDetail 实例
+    String markdownData = markdownJson['data']['description_md'] ?? '';
+    String problemName = markdownJson['data']['problem_name'] ?? '';
+    bool canNxt = markdownJson['data']['can_next'];
+    bool canPrev = markdownJson['data']['can_prev'];
+    String nxt = canNxt ? markdownJson['data']['nxt'].replaceFirst('/problem/', '') : "";
+    String prev = canPrev ? markdownJson['data']['prev'].replaceFirst('/problem/', '') : "";
+    bool isSolved = await checkSolved(widget.problemId);
 
-    _parseContent(_markdownData);
+    _problemDetail = ProblemDetail(
+      problemId: widget.problemId,
+      name: problemName,
+      markdownData: markdownData,
+      canNxt: canNxt,
+      canPrev: canPrev,
+      nxt: nxt,
+      prev: prev,
+      isSolved: isSolved,
+      isCached: isCached,
+    );
+
+    await _parseContent(markdownData);
   }
 
   void _submit() async {
     final answer = _controller.text.trim();
-    if(answer.isEmpty){
+    if (answer.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Answer could not be empty")),
+        const SnackBar(content: Text("Answer could not be empty")),
       );
       return;
     }
-    
+
+    bool isCached = _problemDetail?.isCached ?? await is_cached(widget.problemId);
+
     var response = await submitAndRankingAnimation(
       context,
       'total points',
-      !(await is_cached(widget.problemId)),//如果已经缓存，则不一定需要登陆
+      !isCached, // 如果已经缓存，则不一定需要登陆
       (apiKey) async {
-        return await submitProblem(widget.problemId, answer);
-      }
+        var res = await submitProblem(widget.problemId, answer);
+
+        if (res['statusCode'] == -1) {
+          if (await is_cached(widget.problemId)) {
+            await record(widget.problemId, 'answer', answer);
+            res = {'statusCode': -2, 'data': 'You are offline. Answer recorded in cache'};
+          }
+        }
+        if (res['statusCode'] == 401) {
+          res['data'] = "Login expired. Please log in again";
+        }
+
+        // 直接在 submitAndRankingAnimation 回调内弹出提交状态对话框
+        // 以保证其挂载顺序先于 Ranking Change 对话框
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (context) => SubmissionResultDialog(response: res),
+          );
+        }
+
+        return res;
+      },
     );
 
     if (response['statusCode'] == 200) {
       _controller.clear();
       final passed = response['data']['check'] as bool;
-      if(passed){
+      if (passed) {
         await record(widget.problemId, 'correct', '${true}');
       }
 
@@ -164,32 +380,13 @@ class _ProblemPageState extends State<ProblemPage> {
         widget.onSubmitResult!(passed);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(passed ? 'Your answer is correct' : 'Your answer is incorrect')),
-      );
-      setState(() {
-        _isSolved=true;
-      });
+      if (passed) {
+        setState(() {
+          _problemDetail = _problemDetail?.copyWith(isSolved: true);
+        });
+      }
     } else {
-      if(response['statusCode'] == -1){
-        if(await is_cached(widget.problemId)){
-          await record(widget.problemId, 'answer', answer);
-          response = {'statusCode': -2, 'data': 'You are offline. Answer recorded in cache'};
-          // 在离线记录答案时，视作提交失败，调用回调并传递false
-          if (widget.onSubmitResult != null) {
-            widget.onSubmitResult!(false);
-          }
-        }
-      }
-      if(response['statusCode'] == 401){
-        response['data'] = "Login expired. Please log in again";
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(response['statusCode'] == -2
-          ? '${response['data']}'
-          : 'Submission failed: ${response['statusCode']} ${response['data']}')),
-      );
-      // 在提交失败时，也调用回调并传递false
+      // 在提交失败或离线记录时，调用回调并传递false
       if (widget.onSubmitResult != null) {
         widget.onSubmitResult!(false);
       }
@@ -207,7 +404,7 @@ class _ProblemPageState extends State<ProblemPage> {
     final imgRegex = RegExp(
       r'<img[^>]*src="([^"]+)"[^>]*?width="(\d+)(?:px)?"[^>]*?>',
       caseSensitive: false,
-    );//same as the one in cached_problem_func.dart
+    ); // same as the one in cached_problem_func.dart
 
     int lastEnd = 0;
     int cnt = 0;
@@ -222,14 +419,16 @@ class _ProblemPageState extends State<ProblemPage> {
 
       final width = match.group(2) != null ? double.tryParse(match.group(2)!) : null;
 
-      if(src[0]=='/') final_src="https://topsoj.com"+src;
-      else final_src=src;
+      if (src[0] == '/')
+        final_src = "https://topsoj.com" + src;
+      else
+        final_src = src;
 
       print(cnt);
-      final filename = urlToFilename(widget.problemId,cnt);
-      cnt+=1;
+      final filename = urlToFilename(widget.problemId, cnt);
+      cnt += 1;
       final file = File("${path}/${filename}");
-      
+
       widgets.add(
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -237,16 +436,17 @@ class _ProblemPageState extends State<ProblemPage> {
             file,
             width: width,
             fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace){
-              //print("file not found: ${path}/${filename}");
+            errorBuilder: (context, error, stackTrace) {
               return Image.network(
                 final_src,
                 width: width,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  return Text("--Failed to load image--",
-                    style: TextStyle(color: Colors.red));//change this text to red
-                }
+                  return const Text(
+                    "--Failed to load image--",
+                    style: TextStyle(color: Colors.red),
+                  );
+                },
               );
             },
           ),
@@ -258,7 +458,7 @@ class _ProblemPageState extends State<ProblemPage> {
     if (lastEnd < raw.length) {
       widgets.addAll(_parseMarkdownWithLatex(raw.substring(lastEnd)));
     }
-    _rendered=widgets;
+    _rendered = widgets;
     return;
   }
 
@@ -341,7 +541,7 @@ class _ProblemPageState extends State<ProblemPage> {
     return FutureBuilder(
       future: _loadProblemData(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done && _loaded_problem_id!=widget.problemId) {
+        if (snapshot.connectionState != ConnectionState.done && _problemDetail?.problemId != widget.problemId) {
           return widget.isEmbedded
               ? const Center(child: CircularProgressIndicator()) // 嵌入时只显示加载指示器
               : Scaffold(
@@ -349,13 +549,21 @@ class _ProblemPageState extends State<ProblemPage> {
                   body: const Center(child: CircularProgressIndicator()),
                 );
         }
+
+        final problemName = _problemDetail?.name ?? "";
+        final isSolved = _problemDetail?.isSolved ?? false;
+        final canPrev = _problemDetail?.canPrev ?? false;
+        final canNxt = _problemDetail?.canNxt ?? false;
+        final prev = _problemDetail?.prev ?? "";
+        final nxt = _problemDetail?.nxt ?? "";
+
         // Use _parseContent to build the content
         final content = ListView(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           children: _rendered,
         );
 
-        final _submit_section = Container(
+        final submitSection = Container(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
@@ -367,7 +575,7 @@ class _ProblemPageState extends State<ProblemPage> {
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
-                  onSubmitted: (value){
+                  onSubmitted: (value) {
                     _submit();
                   },
                 ),
@@ -376,8 +584,8 @@ class _ProblemPageState extends State<ProblemPage> {
               FloatingActionButton(
                 onPressed: _submit,
                 tooltip: 'Submit',
-                child: const Icon(Icons.send),
                 mini: true,
+                child: const Icon(Icons.send),
               ),
             ],
           ),
@@ -387,30 +595,30 @@ class _ProblemPageState extends State<ProblemPage> {
         final bodyContent = Column(
           children: [
             Expanded(child: content),
-            if ((_canPrev || _canNxt) && !widget.isEmbedded)
+            if ((canPrev || canNxt) && !widget.isEmbedded)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    if (_canPrev)
+                    if (canPrev)
                       ElevatedButton.icon(
                         onPressed: () {
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
-                              builder: (_) => ProblemPage(problemId: _prev),
+                              builder: (_) => ProblemPage(problemId: prev),
                             ),
                           );
                         },
                         icon: const Icon(Icons.arrow_back),
                         label: const Text("Previous"),
                       ),
-                    if (_canNxt)
+                    if (canNxt)
                       ElevatedButton.icon(
                         onPressed: () {
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
-                              builder: (_) => ProblemPage(problemId: _nxt),
+                              builder: (_) => ProblemPage(problemId: nxt),
                             ),
                           );
                         },
@@ -420,7 +628,7 @@ class _ProblemPageState extends State<ProblemPage> {
                   ],
                 ),
               ),
-            if(widget.isEmbedded) _submit_section,
+            if (widget.isEmbedded) submitSection,
           ],
         );
 
@@ -441,12 +649,12 @@ class _ProblemPageState extends State<ProblemPage> {
                   children: [
                     Expanded(
                       child: Text(
-                        _problemName,
+                        problemName,
                         style: const TextStyle(fontSize: 22),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (_isSolved)
+                    if (isSolved)
                       const Padding(
                         padding: EdgeInsets.only(left: 8),
                         child: Icon(Icons.check, color: Colors.green, size: 24),
@@ -455,9 +663,7 @@ class _ProblemPageState extends State<ProblemPage> {
                 ),
               ),
               body: splitBodyContent,
-
-              bottomNavigationBar: _submit_section,
-
+              bottomNavigationBar: submitSection,
               floatingActionButton: SpeedDial(
                 child: const Icon(Icons.keyboard_arrow_up),
                 closeManually: false,
@@ -475,13 +681,21 @@ class _ProblemPageState extends State<ProblemPage> {
                     foregroundColor: Colors.black,
                     label: 'Cache this problem',
                     onTap: () async {
-                      setState(() async {
-                        await cache(widget.problemId, _problemName, _markdownData, _nxt, _prev);
-                        _isCached=true;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Problem Cached')),
-                      );
+                      if (_problemDetail != null) {
+                        await cache(
+                          widget.problemId,
+                          _problemDetail!.name,
+                          _problemDetail!.markdownData,
+                          _problemDetail!.nxt,
+                          _problemDetail!.prev,
+                        );
+                        setState(() {
+                          _problemDetail = _problemDetail!.copyWith(isCached: true);
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Problem Cached')),
+                        );
+                      }
                     },
                   ),
                   SpeedDialChild(
@@ -490,7 +704,7 @@ class _ProblemPageState extends State<ProblemPage> {
                     foregroundColor: Colors.black,
                     label: 'Calculator',
                     onTap: () {
-                      setState((){
+                      setState(() {
                         _activated_tool = "calculator";
                       });
                     },

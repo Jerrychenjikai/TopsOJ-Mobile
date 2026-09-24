@@ -284,7 +284,7 @@ class _MainPageState extends ConsumerState<MainPage> {
         // 与主按钮的距离
         spaceBetweenChildren: 12,
         children: [
-          SpeedDialChild(
+          /*SpeedDialChild(
             child: const Icon(Icons.bar_chart),
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
             foregroundColor: Colors.black,
@@ -294,7 +294,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                 MaterialPageRoute(builder: (_) => wrap2025.AnnualReportPage()),
               );
             },
-          ),
+          ),*/
           SpeedDialChild(
             child: const Icon(Icons.sports_mma),
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
