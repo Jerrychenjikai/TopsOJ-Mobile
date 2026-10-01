@@ -394,6 +394,7 @@ class InactivePage extends StatelessWidget {
 // immutable; changes such as scrollOffset create a new painter instance, which
 // LiquidGlassScope can detect through shouldRepaint() and use to refresh its
 // shared background snapshot.
+// 替换原本的 BackgroundPainter 类
 class BackgroundPainter extends CustomPainter {
   final Animation<double> animation;
   final double scrollOffset;
@@ -405,182 +406,176 @@ class BackgroundPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 防止初始化时 height 为 0 导致除数为 0 异常
+    if (size.height == 0) return;
+
     final animationValue = animation.value * 2 * pi;
     final rect = Offset.zero & size;
 
-    // Base background.
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment.topCenter,
-          colors: [Color(0x99781A24), Color(0xFA0C0A0F)],
-        ).createShader(rect),
-    );
+    // 根据代码的 PageView，总共有 8 个页面
+    const int totalPages = 8; 
+    
+    // pageProgress: 当前滑动到了第几页 (0.0 到 7.0)
+    final double pageProgress = (scrollOffset / size.height).clamp(0.0, (totalPages - 1).toDouble());
+    
+    // totalProgress: 总体的百分比 (0.0 到 1.0)
+    final double totalProgress = pageProgress / (totalPages - 1);
 
-    // Large atmospheric glows.
-    _drawFullScreenGlow(
-      canvas,
-      size,
-      Alignment(0.2, 0.2),
-      const [Color(0x26F7B3D7), Colors.transparent],
-      const [0.0, 0.55],
-    );
-    _drawFullScreenGlow(
-      canvas,
-      size,
-      Alignment(0.75, 0.35),
-      const [Color(0x2D89F2FF), Colors.transparent],
-      const [0.0, 0.6],
-    );
-    _drawFullScreenGlow(
-      canvas,
-      size,
-      Alignment(0.45, 0.8),
-      const [Color(0x1FFFCC7A), Colors.transparent],
-      const [0.0, 0.55],
-    );
+    // ==========================================
+    // 1. 背景底色的大幅改变 (平滑过渡)
+    // ==========================================
+    final Color baseColorTop = _lerpColorList([
+      const Color(0x99781A24), // 第1-2页：红色系
+      const Color(0x991A3A78), // 第3-4页：蓝色系
+      const Color(0x991A7848), // 第5-6页：蓝绿色系
+      const Color(0x9978581A), // 第7-8页：金橙色系
+    ], totalProgress);
+    
+    final Color baseColorBottom = _lerpColorList([
+      const Color(0xFA0C0A0F),
+      const Color(0xFA0A0F1A),
+      const Color(0xFA0A140F),
+      const Color(0xFA140F0A),
+    ], totalProgress);
 
-    // Bubbles.
-    _drawBubble(canvas, size,
-        top: -60, leftPct: 6, size: 220, duration: 22,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-    _drawBubble(canvas, size,
-        top: 18, rightPct: 10, size: 280, duration: 28,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-    _drawBubble(canvas, size,
-        top: 55, leftPct: 2, size: 180, duration: 24,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-    _drawBubble(canvas, size,
-        bottom: -60, rightPct: 18, size: 240, duration: 26,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-    _drawBubble(canvas, size,
-        top: 38, leftPct: 45, size: 140, duration: 20,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-    _drawBubble(canvas, size,
-        bottom: 20, rightPct: 40, size: 120, duration: 19,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-
-    // Orbs.
-    _drawOrb(canvas, size,
-        top: 10, leftPct: 60, size: 320, delay: -3,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-    _drawOrb(canvas, size,
-        bottom: 8, leftPct: 12, size: 260, delay: -9,
-        animationValue: animationValue, scrollOffset: scrollOffset);
-  }
-
-  void _drawFullScreenGlow(
-    Canvas canvas,
-    Size size,
-    Alignment center,
-    List<Color> colors,
-    List<double> stops,
-  ) {
-    final rect = Offset.zero & size;
     canvas.drawRect(
       rect,
       Paint()
         ..shader = RadialGradient(
-          center: center,
-          colors: colors,
-          stops: stops,
+          center: Alignment.topCenter,
+          colors: [baseColorTop, baseColorBottom],
         ).createShader(rect),
+    );
+
+    // ==========================================
+    // 2. 其它背景元素的淡入淡出 (分组显示，营造换页氛围)
+    // ==========================================
+    // 第一组 (起始氛围): 页面 0.0 ~ 2.5 显示，之后淡出
+    final double opacity1 = (1.0 - (pageProgress - 0.0).abs() / 3.0).clamp(0.0, 1.0);
+    if (opacity1 > 0) {
+      canvas.saveLayer(rect, Paint()..color = Colors.white.withOpacity(opacity1));
+      _drawFullScreenGlow(canvas, size, const Alignment(0.2, 0.2), const [Color(0x26F7B3D7), Colors.transparent], const [0.0, 0.55]);
+      _drawBubble(canvas, size, top: -60, leftPct: 6, size: 220, duration: 22, animationValue: animationValue, scrollOffset: scrollOffset);
+      _drawBubble(canvas, size, top: 55, leftPct: 2, size: 180, duration: 24, animationValue: animationValue, scrollOffset: scrollOffset);
+      canvas.restore();
+    }
+
+    // 第二组 (中段氛围): 页面 2.5 ~ 5.5 淡入并淡出
+    final double opacity2 = (1.0 - (pageProgress - 4.0).abs() / 2.5).clamp(0.0, 1.0);
+    if (opacity2 > 0) {
+      canvas.saveLayer(rect, Paint()..color = Colors.white.withOpacity(opacity2));
+      _drawFullScreenGlow(canvas, size, const Alignment(0.75, 0.35), const [Color(0x2D89F2FF), Colors.transparent], const [0.0, 0.6]);
+      _drawBubble(canvas, size, top: 18, rightPct: 10, size: 280, duration: 28, animationValue: animationValue, scrollOffset: scrollOffset);
+      _drawBubble(canvas, size, top: 38, leftPct: 45, size: 140, duration: 20, animationValue: animationValue, scrollOffset: scrollOffset);
+      canvas.restore();
+    }
+
+    // 第三组 (结尾氛围): 页面 5.5 ~ 7.0 淡入
+    final double opacity3 = (1.0 - (pageProgress - 7.0).abs() / 3.0).clamp(0.0, 1.0);
+    if (opacity3 > 0) {
+      canvas.saveLayer(rect, Paint()..color = Colors.white.withOpacity(opacity3));
+      _drawFullScreenGlow(canvas, size, const Alignment(0.45, 0.8), const [Color(0x1FFFCC7A), Colors.transparent], const [0.0, 0.55]);
+      _drawBubble(canvas, size, bottom: -60, rightPct: 18, size: 240, duration: 26, animationValue: animationValue, scrollOffset: scrollOffset);
+      _drawBubble(canvas, size, bottom: 20, rightPct: 40, size: 120, duration: 19, animationValue: animationValue, scrollOffset: scrollOffset);
+      canvas.restore();
+    }
+
+    // ==========================================
+    // 3. 一直保持在画面上沿曲线往下移动的主体
+    // ==========================================
+    final double mainSubjectSize = 240.0;
+    
+    // 曲线运动 (X轴)：基于总进度使用正弦波计算偏移，使其呈蛇形/S型曲线
+    final double waveAmplitude = size.width * 0.3; // 曲线左右摆动的幅度
+    final double mainSubjectX = (size.width - mainSubjectSize) / 2 + sin(totalProgress * pi * 3.5) * waveAmplitude;
+    
+    // 向下运动 (Y轴)：随着总进度，从屏幕上方平缓移动到屏幕下方
+    final double startY = size.height * 0.05; // 限制在顶部往下一点开始
+    final double endY = size.height * 0.85 - mainSubjectSize; // 限制在底部偏上一点结束
+    
+    // 叠加时间动画带来的微弱呼吸悬浮感（继承原有的灵动感）
+    final double hoverY = sin(animationValue) * 15;
+    
+    // 计算主体在当前屏幕上的绝对位置
+    final double mainSubjectY = startY + (endY - startY) * totalProgress + hoverY;
+
+    // 绘制主体
+    _drawMainSubject(
+      canvas, 
+      size, 
+      x: mainSubjectX, 
+      y: mainSubjectY, 
+      sizeValue: mainSubjectSize,
+      animationValue: animationValue
     );
   }
 
-  void _drawBubble(
+  // 辅助方法：在多个颜色之间根据 0~1 的进度平滑插值
+  Color _lerpColorList(List<Color> colors, double t) {
+    if (t <= 0.0) return colors.first;
+    if (t >= 1.0) return colors.last;
+    
+    final double scaledT = t * (colors.length - 1);
+    final int index = scaledT.toInt();
+    final double fraction = scaledT - index;
+    
+    return Color.lerp(colors[index], colors[index + 1], fraction) ?? colors.last;
+  }
+
+  // 专属主体的绘制方法（沿用原本的 Orb 样式，但去掉了 parallax 的依赖，改为纯屏幕相对坐标）
+  void _drawMainSubject(
     Canvas canvas,
     Size viewport, {
-    double? top,
-    double? leftPct,
-    double? rightPct,
-    double? bottom,
-    required double size,
-    required double duration,
+    required double x,
+    required double y,
+    required double sizeValue,
     required double animationValue,
-    required double scrollOffset,
   }) {
+    // 依然保留轻微的自转/内部位移感
+    final xOffset = cos(animationValue) * 15;
+    
+    final center = Offset(x + sizeValue / 2 + xOffset, y + sizeValue / 2);
+    final circleRect = Rect.fromCircle(center: center, radius: sizeValue / 2);
+
+    canvas.drawCircle(
+      center,
+      sizeValue / 2,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0.35, 0.35),
+          colors: [Color(0x55FFFFFF), Color(0x33F7B3D7), Colors.transparent], 
+          stops: [0.0, 0.45, 0.75],
+        ).createShader(circleRect),
+    );
+  }
+
+  // 以下保留原本的 Helper 函数，无需改动
+  void _drawFullScreenGlow(Canvas canvas, Size size, Alignment center, List<Color> colors, List<double> stops) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(center: center, colors: colors, stops: stops).createShader(rect),
+    );
+  }
+
+  void _drawBubble(Canvas canvas, Size viewport, {double? top, double? leftPct, double? rightPct, double? bottom, required double size, required double duration, required double animationValue, required double scrollOffset,}) {
     final depth = (duration - 18) * 0.005;
     final parallax = scrollOffset * depth;
     final yOffset = sin(animationValue / duration) * 30 + parallax;
 
-    double x;
-    if (leftPct != null) {
-      x = viewport.width * leftPct / 100;
-    } else {
-      x = viewport.width - viewport.width * (rightPct ?? 0) / 100 - size;
-    }
-
-    double y;
-    if (top != null) {
-      y = top + yOffset;
-    } else {
-      // Match Positioned(bottom: bottom + yOffset).
-      y = viewport.height - (bottom ?? 0) - size - yOffset;
-    }
+    double x = leftPct != null ? viewport.width * leftPct / 100 : viewport.width - viewport.width * (rightPct ?? 0) / 100 - size;
+    double y = top != null ? top + yOffset : viewport.height - (bottom ?? 0) - size - yOffset;
 
     final center = Offset(x + size / 2, y + size / 2);
     final circleRect = Rect.fromCircle(center: center, radius: size / 2);
 
-    // Soft shadow from the original BoxShadow.
-    canvas.drawCircle(
-      center,
-      size / 2,
-      Paint()
-        ..color = const Color(0x26FFFFFF)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 35),
-    );
-
-    canvas.drawCircle(
-      center,
-      size / 2,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(0.3, 0.3),
-          colors: [Color(0xB3FFFFFF), Color(0x0AFFFFFF)],
-        ).createShader(circleRect),
-    );
-  }
-
-  void _drawOrb(
-    Canvas canvas,
-    Size viewport, {
-    double? top,
-    double? leftPct,
-    double? bottom,
-    required double size,
-    required double delay,
-    required double animationValue,
-    required double scrollOffset,
-  }) {
-    final yOffset = sin((animationValue + delay) / 24) * 25 + scrollOffset * 0.02;
-    final xOffset = cos((animationValue + delay) / 24) * 20;
-
-    final x = viewport.width * (leftPct ?? 0) / 100 + xOffset;
-    final y = top != null
-        ? top + yOffset
-        : viewport.height - (bottom ?? 0) - size - yOffset;
-
-    final center = Offset(x + size / 2, y + size / 2);
-    final circleRect = Rect.fromCircle(center: center, radius: size / 2);
-
-    canvas.drawCircle(
-      center,
-      size / 2,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(0.35, 0.35),
-          colors: [Color(0x37FFFFFF), Color(0x14F7B3D7), Colors.transparent],
-          stops: [0.0, 0.5, 0.7],
-        ).createShader(circleRect),
-    );
+    canvas.drawCircle(center, size / 2, Paint()..color = const Color(0x26FFFFFF)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 35));
+    canvas.drawCircle(center, size / 2, Paint()..shader = const RadialGradient(center: Alignment(0.3, 0.3), colors: [Color(0xB3FFFFFF), Color(0x0AFFFFFF)]).createShader(circleRect));
   }
 
   @override
   bool shouldRepaint(covariant BackgroundPainter oldDelegate) {
-    // The animation itself is handled by repaint: animation. A new painter
-    // instance only needs a new snapshot when its positioning/state changes.
     return oldDelegate.animation != animation ||
         oldDelegate.scrollOffset != scrollOffset;
   }
