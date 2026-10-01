@@ -137,8 +137,6 @@ const Map<int, String> monthNames = {
   9: 'September', 10: 'October', 11: 'November', 12: 'December',
 };
 
-//page defined here
-
 class AnnualReportPage extends StatefulWidget {
   const AnnualReportPage({super.key});
 
@@ -194,33 +192,29 @@ class _AnnualReportPageState extends State<AnnualReportPage> with TickerProvider
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['status'] == 'success') {
-          print(json['data']);
           return json['data'];
         }
       }
     } catch (e) {
       print("error");
-      // Handle error
     }
     return null;
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: DefaultTextStyle(
-        // 为所有子Text设置默认浅色（merge现有style，未指定color的会用这个）
-        style: const TextStyle(color: Colors.white70),  // 浅白色，柔和；或 Colors.grey[200]
+        style: const TextStyle(color: Colors.white70),
         child: Theme(
           data: Theme.of(context).copyWith(
-            // 强制dark colorScheme，基于根种子颜色生成暗变体
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
-              brightness: Brightness.dark,  // 切换到暗模式，确保系统用浅文本
+              brightness: Brightness.dark,
             ).copyWith(
-              onSurface: Colors.white70,    // 默认表面文本浅色
-              onBackground: Colors.white70, // 背景文本浅色
+              onSurface: Colors.white70,
+              onBackground: Colors.white70,
             ),
-            // 简化textTheme覆盖：只覆盖常见variants（Flutter会自动匹配）
             textTheme: Theme.of(context).textTheme.copyWith(
               bodyLarge: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
               bodyMedium: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
@@ -231,16 +225,14 @@ class _AnnualReportPageState extends State<AnnualReportPage> with TickerProvider
               labelMedium: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white70),
               titleMedium: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
             ),
-            // 覆盖其他组件（如Chip、Button）以确保浅文本
             chipTheme: Theme.of(context).chipTheme.copyWith(
               labelStyle: Theme.of(context).chipTheme.labelStyle?.copyWith(color: Colors.white70),
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white70,  // 按钮文本浅色
+                foregroundColor: Colors.white70,
               ),
             ),
-            // 可选：进度条等用浅色
             progressIndicatorTheme: const ProgressIndicatorThemeData(
               color: Colors.white70,
             ),
@@ -387,14 +379,7 @@ class InactivePage extends StatelessWidget {
   }
 }
 
-// Background painter used by both the visible background and LiquidGlassScope.
-//
-// The animation is supplied as a repaint Listenable, so the visible background
-// keeps animating without rebuilding the whole page. The painter itself remains
-// immutable; changes such as scrollOffset create a new painter instance, which
-// LiquidGlassScope can detect through shouldRepaint() and use to refresh its
-// shared background snapshot.
-// 替换原本的 BackgroundPainter 类
+// BackgroundPainter
 class BackgroundPainter extends CustomPainter {
   final Animation<double> animation;
   final double scrollOffset;
@@ -406,29 +391,20 @@ class BackgroundPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 防止初始化时 height 为 0 导致除数为 0 异常
     if (size.height == 0) return;
 
     final animationValue = animation.value * 2 * pi;
     final rect = Offset.zero & size;
 
-    // 根据代码的 PageView，总共有 8 个页面
     const int totalPages = 8; 
-    
-    // pageProgress: 当前滑动到了第几页 (0.0 到 7.0)
     final double pageProgress = (scrollOffset / size.height).clamp(0.0, (totalPages - 1).toDouble());
-    
-    // totalProgress: 总体的百分比 (0.0 到 1.0)
     final double totalProgress = pageProgress / (totalPages - 1);
 
-    // ==========================================
-    // 1. 背景底色的大幅改变 (平滑过渡)
-    // ==========================================
     final Color baseColorTop = _lerpColorList([
-      const Color(0x99781A24), // 第1-2页：红色系
-      const Color(0x991A3A78), // 第3-4页：蓝色系
-      const Color(0x991A7848), // 第5-6页：蓝绿色系
-      const Color(0x9978581A), // 第7-8页：金橙色系
+      const Color(0x99781A24),
+      const Color(0x991A3A78),
+      const Color(0x991A7848),
+      const Color(0x9978581A),
     ], totalProgress);
     
     final Color baseColorBottom = _lerpColorList([
@@ -447,10 +423,6 @@ class BackgroundPainter extends CustomPainter {
         ).createShader(rect),
     );
 
-    // ==========================================
-    // 2. 其它背景元素的淡入淡出 (分组显示，营造换页氛围)
-    // ==========================================
-    // 第一组 (起始氛围): 页面 0.0 ~ 2.5 显示，之后淡出
     final double opacity1 = (1.0 - (pageProgress - 0.0).abs() / 3.0).clamp(0.0, 1.0);
     if (opacity1 > 0) {
       canvas.saveLayer(rect, Paint()..color = Colors.white.withOpacity(opacity1));
@@ -460,7 +432,6 @@ class BackgroundPainter extends CustomPainter {
       canvas.restore();
     }
 
-    // 第二组 (中段氛围): 页面 2.5 ~ 5.5 淡入并淡出
     final double opacity2 = (1.0 - (pageProgress - 4.0).abs() / 2.5).clamp(0.0, 1.0);
     if (opacity2 > 0) {
       canvas.saveLayer(rect, Paint()..color = Colors.white.withOpacity(opacity2));
@@ -470,7 +441,6 @@ class BackgroundPainter extends CustomPainter {
       canvas.restore();
     }
 
-    // 第三组 (结尾氛围): 页面 5.5 ~ 7.0 淡入
     final double opacity3 = (1.0 - (pageProgress - 7.0).abs() / 3.0).clamp(0.0, 1.0);
     if (opacity3 > 0) {
       canvas.saveLayer(rect, Paint()..color = Colors.white.withOpacity(opacity3));
@@ -480,26 +450,14 @@ class BackgroundPainter extends CustomPainter {
       canvas.restore();
     }
 
-    // ==========================================
-    // 3. 一直保持在画面上沿曲线往下移动的主体
-    // ==========================================
     final double mainSubjectSize = 240.0;
-    
-    // 曲线运动 (X轴)：基于总进度使用正弦波计算偏移，使其呈蛇形/S型曲线
-    final double waveAmplitude = size.width * 0.3; // 曲线左右摆动的幅度
+    final double waveAmplitude = size.width * 0.3;
     final double mainSubjectX = (size.width - mainSubjectSize) / 2 + sin(totalProgress * pi * 3.5) * waveAmplitude;
-    
-    // 向下运动 (Y轴)：随着总进度，从屏幕上方平缓移动到屏幕下方
-    final double startY = size.height * 0.05; // 限制在顶部往下一点开始
-    final double endY = size.height * 0.85 - mainSubjectSize; // 限制在底部偏上一点结束
-    
-    // 叠加时间动画带来的微弱呼吸悬浮感（继承原有的灵动感）
+    final double startY = size.height * 0.05;
+    final double endY = size.height * 0.85 - mainSubjectSize;
     final double hoverY = sin(animationValue) * 15;
-    
-    // 计算主体在当前屏幕上的绝对位置
     final double mainSubjectY = startY + (endY - startY) * totalProgress + hoverY;
 
-    // 绘制主体
     _drawMainSubject(
       canvas, 
       size, 
@@ -510,7 +468,6 @@ class BackgroundPainter extends CustomPainter {
     );
   }
 
-  // 辅助方法：在多个颜色之间根据 0~1 的进度平滑插值
   Color _lerpColorList(List<Color> colors, double t) {
     if (t <= 0.0) return colors.first;
     if (t >= 1.0) return colors.last;
@@ -522,7 +479,6 @@ class BackgroundPainter extends CustomPainter {
     return Color.lerp(colors[index], colors[index + 1], fraction) ?? colors.last;
   }
 
-  // 专属主体的绘制方法（沿用原本的 Orb 样式，但去掉了 parallax 的依赖，改为纯屏幕相对坐标）
   void _drawMainSubject(
     Canvas canvas,
     Size viewport, {
@@ -531,9 +487,7 @@ class BackgroundPainter extends CustomPainter {
     required double sizeValue,
     required double animationValue,
   }) {
-    // 依然保留轻微的自转/内部位移感
     final xOffset = cos(animationValue) * 15;
-    
     final center = Offset(x + sizeValue / 2 + xOffset, y + sizeValue / 2);
     final circleRect = Rect.fromCircle(center: center, radius: sizeValue / 2);
 
@@ -549,7 +503,6 @@ class BackgroundPainter extends CustomPainter {
     );
   }
 
-  // 以下保留原本的 Helper 函数，无需改动
   void _drawFullScreenGlow(Canvas canvas, Size size, Alignment center, List<Color> colors, List<double> stops) {
     final rect = Offset.zero & size;
     canvas.drawRect(
@@ -581,7 +534,7 @@ class BackgroundPainter extends CustomPainter {
   }
 }
 
-// 采用 ui_basic 中的 LiquidGlassContainer 重构原有的磨砂组件
+// GlassPanel
 class GlassPanel extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -617,7 +570,7 @@ class GlassPanel extends StatelessWidget {
   }
 }
 
-// Hero Page
+// Hero Page (第一页保持原样)
 class HeroPage extends StatelessWidget {
   final AnnualReportData reportData;
   final bool isPreview;
@@ -648,14 +601,12 @@ class HeroPage extends StatelessWidget {
       MetricCard(
         label: 'Problems Solved',
         value: reportData.problemSolved.toString(),
-        sub:
-            '${(reportData.problemSolvedPercent * 100).round()}% percentile in solving',
+        sub: '${(reportData.problemSolvedPercent * 100).round()}% percentile in solving',
       ),
       MetricCard(
         label: 'Points Collected',
         value: reportData.pointGained.toString(),
-        sub:
-            '${(reportData.pointGainedPercent * 100).round()}% percentile in points',
+        sub: '${(reportData.pointGainedPercent * 100).round()}% percentile in points',
       ),
       MetricCard(
         label: 'Days Activated',
@@ -715,35 +666,35 @@ class HeroPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Text("scroll down for more")]),
+          const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text("scroll down for more")]),
         ],
       ),
     );
   }
 }
 
-//submetriccard
+// SubMetricCard
 class SubMetricCard extends StatelessWidget {
-    final Widget whatsinside;
+  final Widget whatsinside;
 
-    const SubMetricCard({super.key, required this.whatsinside});
+  const SubMetricCard({super.key, required this.whatsinside});
 
-    @override
-    Widget build(BuildContext context) {
-        return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0x29FFFFFF), Color(0x0AFFFFFF)],
         ),
         border: Border.all(color: const Color(0x2DFFFFFF)),
-        ),
-        child: whatsinside,
-      );
-    }
+      ),
+      child: whatsinside,
+    );
+  }
 }
 
 // MetricCard
@@ -828,7 +779,7 @@ class RadialPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// SolverPersonaPage
+// SolverPersonaPage (>2个元素，保持轻微左右交替错落，宽度自适应)
 class SolverPersonaPage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -837,27 +788,80 @@ class SolverPersonaPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badge = getSolverBadge(reportData.problemSolved);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = min(screenWidth * 0.75, 480.0);
+
     return GlassPanel(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(badge.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            Text('You solved ${reportData.problemSolved} problems and stacked ${reportData.pointGained} points. That is a signature run.', textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: badge.tags.map((tag) => SubMetricCard(whatsinside: Text(tag))).toList(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'SOLVER PERSONA',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 2.8,
+                  color: Color(0xFF89F2FF),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                badge.title,
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'You solved ${reportData.problemSolved} problems and stacked ${reportData.pointGained} points. That is a signature run.',
+                style: const TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(badge.tags.length, (index) {
+                    final isLeft = index % 2 == 0;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Align(
+                        alignment: Alignment(isLeft ? -0.25 : 0.25, 0),
+                        child: Container(
+                          width: cardWidth,
+                          constraints: const BoxConstraints(
+                            minHeight: 50,
+                            maxHeight: 90,
+                          ),
+                          child: SubMetricCard(
+                            whatsinside: Center(
+                              child: Text(
+                                badge.tags[index],
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// TopPercentilePage
+// TopPercentilePage (刚好2个容器，居中排列取消偏移，宽度自适应)
 class TopPercentilePage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -867,44 +871,102 @@ class TopPercentilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final solvedPercent = (reportData.problemSolvedPercent * 100).round();
     final pointsPercent = (reportData.pointGainedPercent * 100).round();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = min(screenWidth * 0.85, 550.0);
+
     return GlassPanel(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Top Percentile Power', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const Text('When it comes to problems solved and points gained, you stood above the crowd.'),
-            const SizedBox(height: 16),
-            SubMetricCard(
-              whatsinside: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'PERCENTILE RANKING',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 2.8,
+                  color: Color(0xFF89F2FF),
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Top Percentile Power',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'When it comes to problems solved and points gained, you stood above the crowd.',
+                style: TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'You’re building your own era on TopsOJ. Keep stacking highlights.',
+                style: TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  LinearProgressIndicator(value: reportData.problemSolvedPercent, backgroundColor: const Color(0x1FFFFFFF), color: const Color(0xFFF7B3D7)),
-                  Text('$solvedPercent% of users solved fewer problems than you.'),
+                  Container(
+                    width: cardWidth,
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    child: SubMetricCard(
+                      whatsinside: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          LinearProgressIndicator(
+                            value: reportData.problemSolvedPercent,
+                            backgroundColor: const Color(0x1FFFFFFF),
+                            color: const Color(0xFFF7B3D7),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '$solvedPercent% of users solved fewer problems than you.',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: cardWidth,
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    child: SubMetricCard(
+                      whatsinside: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          LinearProgressIndicator(
+                            value: reportData.pointGainedPercent,
+                            backgroundColor: const Color(0x1FFFFFFF),
+                            color: const Color(0xFF89F2FF),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '$pointsPercent% of users earned fewer points than you.',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            SubMetricCard(
-              whatsinside: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  LinearProgressIndicator(value: reportData.pointGainedPercent, backgroundColor: const Color(0x1FFFFFFF), color: const Color(0xFFF7B3D7)),
-                  Text('$pointsPercent% of users earned fewer points than you.'),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            const Text('You’re building your own era on TopsOJ. Keep stacking highlights.'),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// MostAttemptedPage
+// MostAttemptedPage (只有1个容器，居中展示，宽度自适应)
 class MostAttemptedPage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -912,42 +974,90 @@ class MostAttemptedPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = min(screenWidth * 0.85, 550.0);
+
     return GlassPanel(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Most Attempted Challenge', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            if (reportData.mostAttemptedProblemName != null)
-              SubMetricCard(
-                whatsinside: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => ProblemPage(problemId: reportData.mostAttemptedProblemId ?? ""),
-                            ),
-                        );
-                      },
-                      child: Text(reportData.mostAttemptedProblemName!, style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline)),
-                    ),
-                    Text('${reportData.numAttemptsMostAttempted} attempts on your most attempted problem.')
-                  ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'GRIND & GRIT',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 2.8,
+                  color: Color(0xFF89F2FF),
                 ),
-              )
-            else
-              const Text('No most attempted highlight logged.')
-            
-          ],
-        ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Most Attempted Challenge',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'The single problem that pushed you to your limits this year.',
+                style: TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: Container(
+                width: cardWidth,
+                constraints: const BoxConstraints(maxHeight: 160),
+                child: reportData.mostAttemptedProblemName != null
+                    ? SubMetricCard(
+                        whatsinside: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ProblemPage(
+                                      problemId: reportData.mostAttemptedProblemId ?? "",
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                reportData.mostAttemptedProblemName!,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF89F2FF),
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '${reportData.numAttemptsMostAttempted} attempts logged.',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SubMetricCard(
+                        whatsinside: Center(
+                          child: Text('No most attempted highlight logged.'),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// RatingHighsPage
+// RatingHighsPage (只有1个容器，居中展示，宽度自适应)
 class RatingHighsPage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -955,46 +1065,91 @@ class RatingHighsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Rating Highs', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            if (reportData.highestRating <= 0)
-                const Text('Unrated this year. Next contest, next glow-up.'),
-            const SizedBox(height: 16),
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = min(screenWidth * 0.85, 550.0);
 
-            if (reportData.highestRating > 0)
-                SubMetricCard(
-                    whatsinside: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                            Text('Peak rating: ${reportData.highestRating}'),
-                            Text('Peak contest: ${reportData.highestRatingContestName ?? "--"}'),
-                            Text('Ranking at peak: #${reportData.highestRatingRanking}'),
-                        ]
-                    )
-                )
-            else
-                SubMetricCard(
-                    whatsinside: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                    
-                            const Text('Peak contest: --'),
-                            const Text('Ranking at peak: --'),
-                        ]
-                    )
-                )
-          ],
-        ),
+    return GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'RATING HIGHS',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 2.8,
+                  color: Color(0xFF89F2FF),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Rating Highs',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                reportData.highestRating <= 0
+                    ? 'Unrated this year. Next contest, next glow-up.'
+                    : 'Your maximum rating reached across competitive rounds.',
+                style: const TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: Container(
+                width: cardWidth,
+                constraints: const BoxConstraints(maxHeight: 160),
+                child: reportData.highestRating > 0
+                    ? SubMetricCard(
+                        whatsinside: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Peak Rating: ${reportData.highestRating}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFF7B3D7),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Contest: ${reportData.highestRatingContestName ?? "--"}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Ranking at Peak: #${reportData.highestRatingRanking}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SubMetricCard(
+                        whatsinside: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Peak Contest: --'),
+                            SizedBox(height: 4),
+                            Text('Ranking at Peak: --'),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ContestHighlightsPage
+// ContestHighlightsPage (只有1个容器，居中展示，宽度自适应)
 class ContestHighlightsPage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -1002,45 +1157,86 @@ class ContestHighlightsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Contest Highlights', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            if (reportData.numContestParticipated <= 0)
-                Text('You jumped into ${reportData.numContestParticipated} contests.'),
-            const SizedBox(height: 16),
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = min(screenWidth * 0.85, 550.0);
 
-            if (reportData.numContestParticipated > 0)
-                SubMetricCard(
-                    whatsinside: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                            Text('Best placement: #${reportData.highestContestRanking}'),
-                            Text('Top contest: ${reportData.highestRankingContestName ?? "--"}'),
-                        ]
-                    )
-                )
-            else
-                SubMetricCard(
-                    whatsinside: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                            const Text('No contest runs this year. The arena awaits.'),
-                            const Text('Best placement: --'),
-                            const Text('Top contest: --'),
-                        ]
-                    )
-                )
-          ],
-        ),
+    return GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'ARENA RUNS',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 2.8,
+                  color: Color(0xFF89F2FF),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Contest Highlights',
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                reportData.numContestParticipated > 0
+                    ? 'You jumped into ${reportData.numContestParticipated} contests.'
+                    : 'No contest runs this year. The arena awaits.',
+                style: const TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: Container(
+                width: cardWidth,
+                constraints: const BoxConstraints(maxHeight: 160),
+                child: reportData.numContestParticipated > 0
+                    ? SubMetricCard(
+                        whatsinside: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Best Placement: #${reportData.highestContestRanking}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF89F2FF),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Top Contest: ${reportData.highestRankingContestName ?? "--"}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SubMetricCard(
+                        whatsinside: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Best Placement: --'),
+                            SizedBox(height: 4),
+                            Text('Top Contest: --'),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// TimelinePage
+// TimelinePage (有3个容器，保持轻微左右交替错落，宽度自适应)
 class TimelinePage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -1049,64 +1245,138 @@ class TimelinePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeMonth = monthNames[reportData.mostActiveMonth] ?? '--';
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = min(screenWidth * 0.75, 480.0);
+
+    final items = [
+      _TimelineData(
+        title: 'Most Active Day',
+        subtitle: '$reportYear.${reportData.mostActiveDate ?? "--"}',
+        details: '${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points',
+        note: 'You were really on the grind that day',
+      ),
+      _TimelineData(
+        title: 'Most Active Month',
+        subtitle: activeMonth,
+        details: '${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points',
+        note: 'What an exciting month!',
+      ),
+      _TimelineData(
+        title: 'Earliest Win',
+        subtitle: 'At ${reportData.earliestSubmission ?? "--"}',
+        details: reportData.earliestSubmitProblemName ?? 'No early submission highlight logged.',
+        note: 'That\'s an early hit!',
+      ),
+    ];
+
     return GlassPanel(
-      padding: const EdgeInsets.all(32),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Your Most Electric Moments', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
-        TimelineChip(
-            title: 'Most active day',
-            subtitle: '$reportYear.${reportData.mostActiveDate ?? "--"}',
-            details: '${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points',
-            note: 'You were really on the grind that day',
-        ),
-        const SizedBox(height: 16),
-        TimelineChip(
-            title: 'Most active month',
-            subtitle: activeMonth,
-            details: '${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points',
-            note: 'What an exciting month!',
-        ),
-        const SizedBox(height: 16),
-        TimelineChip(
-            title: 'Earliest win',
-            subtitle: 'At ${reportData.earliestSubmission ?? "--"}',
-            details: reportData.earliestSubmitProblemName ?? 'No early submission highlight logged.',
-            note: 'That\'s an early hit!',
-        ),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'TIMELINE',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 2.8,
+                  color: Color(0xFF89F2FF),
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Your Most Electric Moments',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'A timestamped record of your peak momentum moments.',
+                style: TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(items.length, (index) {
+                    final isLeft = index % 2 == 0;
+                    final item = items[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Align(
+                        alignment: Alignment(isLeft ? -0.22 : 0.22, 0),
+                        child: Container(
+                          width: cardWidth,
+                          constraints: const BoxConstraints(maxHeight: 130),
+                          child: SubMetricCard(
+                            whatsinside: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  item.title,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  item.subtitle,
+                                  style: const TextStyle(
+                                    color: Color(0xFF89F2FF),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  item.details,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  item.note,
+                                  style: const TextStyle(
+                                    color: Color(0xB3FFFFFF),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class TimelineChip extends StatelessWidget {
+class _TimelineData {
   final String title;
   final String subtitle;
   final String details;
   final String note;
 
-  const TimelineChip({super.key, required this.title, required this.subtitle, required this.details, required this.note});
-
-  @override
-  Widget build(BuildContext context) {
-    return SubMetricCard(
-      whatsinside: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Text(subtitle, style: const TextStyle(color: Color(0xFF89F2FF))),
-          Text(details, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(note),
-        ],
-      ),
-    );
-  }
+  _TimelineData({
+    required this.title,
+    required this.subtitle,
+    required this.details,
+    required this.note,
+  });
 }
 
+// SummaryPage (2个容器，居中排列取消偏移，宽度自适应大屏)
 class SummaryPage extends StatelessWidget {
   final AnnualReportData reportData;
 
@@ -1120,84 +1390,119 @@ class SummaryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summary = getSummary();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = min(screenWidth * 0.85, 650.0);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return GlassPanel(
-          padding: const EdgeInsets.all(32),
-          child: SingleChildScrollView( // 滚动视图放在里面
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'WRAP UP',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 2.8,
+                  color: Color(0xFF89F2FF),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Your Wrapped Summary',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE84C78),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: summary));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Summary copied!')),
+                        );
+                      }
+                    },
+                    child: const Text('Copy Summary', style: TextStyle(fontSize: 12)),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE84C78),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Back', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Center(
+                child: Column(
                   children: [
-                    const Text('Your Wrapped Summary',
-                      style:
-                        TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Container(
+                      width: cardWidth,
+                      child: SubMetricCard(
+                        whatsinside: Text(
+                          summary,
+                          style: const TextStyle(fontSize: 15, height: 1.4),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
-                    Text(summary, style: const TextStyle(fontSize: 16)),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children:[
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE84C78),
-                            shape: const StadiumBorder(),
-                          ),
-                          onPressed: () async {
-                            await Clipboard.setData(ClipboardData(text: summary));
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Summary copied!')));
-                            }
-                          },
-                          child: const Text('Copy Summary'),
+                    Container(
+                      width: cardWidth,
+                      child: SubMetricCard(
+                        whatsinside: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'All Highlights',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF89F2FF),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Problems Solved: ${reportData.problemSolved} (${(reportData.problemSolvedPercent * 100).round()}% percentile)'),
+                            Text('Points Collected: ${reportData.pointGained} (${(reportData.pointGainedPercent * 100).round()}% percentile)'),
+                            Text('Days Activated: ${reportData.daysSpent}'),
+                            Text('Most Attempted: ${reportData.mostAttemptedProblemName ?? "--"} (${reportData.numAttemptsMostAttempted} attempts)'),
+                            Text('Highest Rating: ${reportData.highestRating > 0 ? reportData.highestRating : "Unrated"}'),
+                            Text('Highest Rating Contest: ${reportData.highestRatingContestName ?? "--"}'),
+                            Text('Highest Rating Ranking: #${reportData.highestRatingRanking}'),
+                            Text('Contests Participated: ${reportData.numContestParticipated}'),
+                            Text('Highest Contest Ranking: #${reportData.highestContestRanking}'),
+                            Text('Highest Ranking Contest: ${reportData.highestRankingContestName ?? "--"}'),
+                            Text('Most Active Day: $reportYear.${reportData.mostActiveDate ?? "--"} (${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points)'),
+                            Text('Most Active Month: ${monthNames[reportData.mostActiveMonth] ?? "--"} (${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points)'),
+                            Text('Earliest Win: At ${reportData.earliestSubmission ?? "--"}, solved ${reportData.earliestSubmitProblemName ?? "--"}'),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE84C78),
-                            shape: const StadiumBorder(),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: const Text('Back'),
-                        ),
-                      ]
+                      ),
                     ),
                   ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 32),
-                    const Text('All Highlights:',
-                        style:
-                            TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    Text('Problems Solved: ${reportData.problemSolved} (${(reportData.problemSolvedPercent * 100).round()}% percentile)'),
-                    Text('Points Collected: ${reportData.pointGained} (${(reportData.pointGainedPercent * 100).round()}% percentile)'),
-                    Text('Days Activated: ${reportData.daysSpent}'),
-                    Text('Most Attempted Challenge: ${reportData.mostAttemptedProblemName ?? "--"} (${reportData.numAttemptsMostAttempted} attempts)'),
-                    Text('Highest Rating: ${reportData.highestRating > 0 ? reportData.highestRating : "Unrated"}'),
-                    Text('Highest Rating Contest: ${reportData.highestRatingContestName ?? "--"}'),
-                    Text('Highest Rating Ranking: #${reportData.highestRatingRanking}'),
-                    Text('Contests Participated: ${reportData.numContestParticipated}'),
-                    Text('Highest Contest Ranking: #${reportData.highestContestRanking}'),
-                    Text('Highest Ranking Contest: ${reportData.highestRankingContestName ?? "--"}'),
-                    Text('Most Active Day: $reportYear.${reportData.mostActiveDate ?? "--"} (${reportData.mostActiveDateSolved} solves, ${reportData.mostActiveDatePoint} points)'),
-                    Text('Most Active Month: ${monthNames[reportData.mostActiveMonth] ?? "--"} (${reportData.mostActiveMonthSolved} solves, ${reportData.mostActiveMonthPoint} points)'),
-                    Text('Earliest Win: At ${reportData.earliestSubmission ?? "--"}, solved ${reportData.earliestSubmitProblemName ?? "--"}'),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
