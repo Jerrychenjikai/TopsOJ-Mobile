@@ -802,14 +802,6 @@ class _LiquidGlassContainerState
                 effectiveRadius,
               ),
 
-              border: Border.all(
-                color:
-                    Colors.white.withOpacity(
-                  0.35,
-                ),
-                width: 1.2,
-              ),
-
               color:
                   Colors.white.withOpacity(
                 0.12,
