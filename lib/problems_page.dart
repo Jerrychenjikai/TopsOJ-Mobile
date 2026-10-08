@@ -113,6 +113,7 @@ class _ProblemsState extends ConsumerState<Problems> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(
@@ -179,18 +180,16 @@ class _ProblemsState extends ConsumerState<Problems> {
             ),
           ],),
           const SizedBox(height: 10),
-          Expanded(
-            child: TextField(
-              controller: _problemIdController,
-              decoration: const InputDecoration(
-                labelText: 'Enter Problem Name/ID',
-                border: OutlineInputBorder(),
-              ),
-              onSubmitted: (value) {
-                _page = 1;
-                _getProblems();
-              },
+          TextField(
+            controller: _problemIdController,
+            decoration: const InputDecoration(
+              labelText: 'Enter Problem Name/ID',
+              border: OutlineInputBorder(),
             ),
+            onSubmitted: (value) {
+              _page = 1;
+              _getProblems();
+            },
           ),
         ],
       ),
