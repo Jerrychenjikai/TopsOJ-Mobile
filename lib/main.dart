@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 1. 引入 services 包
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -26,10 +27,22 @@ import 'basic/ui_basic.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();  
-  // 提前加载好 Shader
-  await preloadLiquidGlassShader();
-  PackageInfo packageInfo = await PackageInfo.fromPlatform();
-  runApp(const ProviderScope(child: TopsOJ()));
+
+  // 2. 开启 Edge-to-Edge，并将系统状态栏与底部导航栏设为全透明
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent, // 关键：系统底部导航栏透明
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
+
+  // 提前加载好 Shader[cite: 1]
+  await preloadLiquidGlassShader(); //[cite: 1]
+  PackageInfo packageInfo = await PackageInfo.fromPlatform(); //[cite: 1]
+  runApp(const ProviderScope(child: TopsOJ())); //[cite: 1]
 }
 
 class TopsOJ extends StatelessWidget {
@@ -39,7 +52,7 @@ class TopsOJ extends StatelessWidget {
     return MaterialApp(
       title: "Tops Online Judge",
       routes: {
-        '/home': (context) => MainPage(),
+        '/home': (context) => const MainPage(),
       },
       theme: ThemeData(
         useMaterial3: true, 
@@ -47,9 +60,9 @@ class TopsOJ extends StatelessWidget {
           seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
         ),
         appBarTheme: const AppBarTheme(
-          elevation: 0,                      // 平时无阴影（可选，但常一起设）
-          scrolledUnderElevation: 0,         // ← 核心！全局让滚动时也不抬升/不变色
-          surfaceTintColor: Colors.transparent, // 额外保险，防止 tint 染色（强烈推荐）
+          elevation: 0,                      
+          scrolledUnderElevation: 0,         
+          surfaceTintColor: Colors.transparent, 
           shadowColor: Colors.transparent,
         ),
         textTheme: Theme.of(context).textTheme.apply(
@@ -57,8 +70,8 @@ class TopsOJ extends StatelessWidget {
           displayColor: Colors.black,
         ),
         snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,          // 預設改成 floating
-          shape: RoundedRectangleBorder(                // 可選：更好看
+          behavior: SnackBarBehavior.floating,          
+          shape: RoundedRectangleBorder(                
             borderRadius: BorderRadius.circular(8),
           ),
           elevation: 6,
@@ -86,6 +99,9 @@ class _MainPageState extends ConsumerState<MainPage> {
   List<Widget> _weeklylb_render = [];
   List<Widget> _precommend_render = [];
 
+  // 用于捕获主界面背景内容的 Key
+  final GlobalKey _backgroundKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -103,7 +119,6 @@ class _MainPageState extends ConsumerState<MainPage> {
       }
     }
 
-    // this renders the content in the drawer
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String apiKey = prefs.getString('apiKey') ?? "";
     final result = await checkApiKeyValid(apiKey);
@@ -126,7 +141,7 @@ class _MainPageState extends ConsumerState<MainPage> {
           ),
         );
       }
-      if (precommend.length != 0) {
+      if (precommend.isNotEmpty) {
         _precommend_render = [];
         for (dynamic pr in precommend) {
           if (_precommend_render.length > 4) {
@@ -136,7 +151,7 @@ class _MainPageState extends ConsumerState<MainPage> {
             ListTile(
               title: Text(pr['name']),
               subtitle: Text(pr['pid']),
-              leading: Icon(Icons.book),
+              leading: const Icon(Icons.book),
               onTap: () {
                 _gotoProblem(pr['pid']);
               },
@@ -186,171 +201,290 @@ class _MainPageState extends ConsumerState<MainPage> {
   Widget build(BuildContext context) {
     final List<String> _tabTitles = const [
       'TopsOJ',       // index 0
-      'Problems',   // index 1
+      'Problems',     // index 1
       'Rankings',
     ];
     final currentIndex = ref.watch(
       mainPageProvider.select((state) => state.index),
     );
 
-    return Scaffold(
-      drawer: Drawer(
-        width: max(min(MediaQuery.of(context).size.width * 0.75, 500), 350),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Text(
-                  _response,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-                ),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      Text("Join date: ${_userinfo['join_date']}"),
-                      const SizedBox(height: 5),
-                      Text("Total Points: ${_userinfo['total_points']}"),
-                      const SizedBox(height: 5),
-                      Text("Streak: ${_userinfo['streak']}"),
-                      const SizedBox(height: 15),
-
-                      Card(
-                        color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            Text(
-                              "Weekly Leaderboard",
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                            ),
-                            ..._weeklylb_render,
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Card(
-                        color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            Text(
-                              "Problems you might find challenging",
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                            ),
-                            ..._precommend_render,
-                          ],
-                        ),
-                      ),
-                    ],
+    return LiquidGlassScope(
+      repaintBoundaryKey: _backgroundKey,
+      child: Scaffold(
+        extendBody: true, // 核心：让 body 延伸到底部导航栏下方
+        drawer: Drawer(
+          width: max(min(MediaQuery.of(context).size.width * 0.75, 500), 350),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Text(
+                    _response,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        Text("Join date: ${_userinfo['join_date']}"),
+                        const SizedBox(height: 5),
+                        Text("Total Points: ${_userinfo['total_points']}"),
+                        const SizedBox(height: 5),
+                        Text("Streak: ${_userinfo['streak']}"),
+                        const SizedBox(height: 15),
+
+                        Card(
+                          color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              const Text(
+                                "Weekly Leaderboard",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                              ),
+                              ..._weeklylb_render,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        Card(
+                          color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              const Text(
+                                "Problems you might find challenging",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                              ),
+                              ..._precommend_render,
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      onDrawerChanged: (isOpened) {
-        if (isOpened) {
-          _makeRequest();
-        }
-      },
-      appBar: AppBar(
-        title: Text(_tabTitles[currentIndex]),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_2_outlined),
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      floatingActionButton: SpeedDial(
-        child: const Icon(Icons.keyboard_arrow_up),
-        // 展开时的图标（常用来放 ×）
-        closeManually: false,
-        activeChild: const Icon(Icons.close),
-        // 方向：最常用的是 up
-        direction: SpeedDialDirection.up,
-        // 动画曲线
-        animationCurve: Curves.easeInOutCubic,
-        // 背景遮罩（可选）
-        overlayColor: Theme.of(context).colorScheme.secondary,
-        overlayOpacity: 0.4,
-        // 子按钮间距
-        spacing: 8,
-        // 与主按钮的距离
-        spaceBetweenChildren: 12,
-        children: [
-          SpeedDialChild(
-            child: const Icon(Icons.bar_chart),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-            foregroundColor: Colors.black,
-            label: '2025 Wrap',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => wrap2025.AnnualReportPage()),
-              );
-            },
-          ),
-          SpeedDialChild(
-            child: const Icon(Icons.sports_mma),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-            foregroundColor: Colors.black,
-            label: 'Math PvP',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => BattlePage()),
-              );
-            },
-          ),
-          SpeedDialChild(
-            child: const Icon(Icons.save),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-            foregroundColor: Colors.black,
-            label: 'Cached Problems',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => CachedPage()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: currentIndex,
-        children: const [
-          HomePage(),
-          Problems(),
-          RankingPage(),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          ref.read(mainPageProvider.notifier).update((state) => (
-            index: index,
-            search: null,
-            ranking_category: null,
-          ));
+        onDrawerChanged: (isOpened) {
+          if (isOpened) {
+            _makeRequest();
+          }
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+        appBar: AppBar(
+          title: Text(_tabTitles[currentIndex]),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.person_2_outlined),
+              onPressed: _logout,
+            ),
+          ],
+        ),
+        floatingActionButton: _buildLiquidSpeedDial(context),
+        body: RepaintBoundary(
+          key: _backgroundKey,
+          child: IndexedStack(
+            index: currentIndex,
+            children: const [
+              HomePage(),
+              Problems(),
+              RankingPage(),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.filter),
-            label: 'Problems',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard),
-            label: 'Rankings',
-          ),
-        ],
+        ),
+        bottomNavigationBar: _buildLiquidBottomNavigationBar(context, currentIndex),
       ),
+    );
+  }
+
+  /// 完全透明的 Liquid Glass 底部导航条
+  Widget _buildLiquidBottomNavigationBar(BuildContext context, int currentIndex) {
+    const double navBarHeight = 64.0;
+    const double borderRadius = navBarHeight / 2; // 圆角半径等于高度的一半 (32.0)
+
+    final theme = Theme.of(context);
+    final selectedColor = theme.colorScheme.primary;
+    final unselectedColor = theme.colorScheme.onSurfaceVariant.withOpacity(0.6);
+
+    final items = [
+      (icon: Icons.home, label: 'Home'),
+      (icon: Icons.filter_alt_outlined, label: 'Problems'),
+      (icon: Icons.leaderboard_outlined, label: 'Rankings'),
+    ];
+
+    return Container(
+      color: Colors.transparent, // 确保无任何实体背景层
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        bottom: max(MediaQuery.of(context).padding.bottom, 12),
+        top: 4,
+      ),
+      child: LiquidGlassContainer(
+        height: navBarHeight,
+        borderRadius: borderRadius,
+        refractionIntensity: 3.5,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: List.generate(items.length, (index) {
+            final isSelected = index == currentIndex;
+            final color = isSelected ? selectedColor : unselectedColor;
+
+            return Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(borderRadius),
+                onTap: () {
+                  ref.read(mainPageProvider.notifier).update((state) => (
+                    index: index,
+                    search: null,
+                    ranking_category: null,
+                  ));
+                  // 待新页面在 IndexedStack 中绘制完成后更新液态玻璃折射纹理
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (context.mounted) {
+                      LiquidGlassScope.notifyUpdate(context);
+                    }
+                  });
+                },
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      items[index].icon,
+                      color: color,
+                      size: isSelected ? 26 : 22,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      items[index].label,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  /// Liquid Glass 样式的 SpeedDial (Floating Action Button)
+  Widget _buildLiquidSpeedDial(BuildContext context) {
+    const double fabSize = 56.0;
+    const double fabRadius = fabSize / 2; // 圆形 (28.0)
+
+    const double childSize = 48.0;
+    const double childRadius = childSize / 2; // 圆形 (24.0)
+
+    return SpeedDial(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      overlayColor: Theme.of(context).colorScheme.secondary,
+      overlayOpacity: 0.25,
+      direction: SpeedDialDirection.up,
+      animationCurve: Curves.easeInOutCubic,
+      spacing: 8,
+      spaceBetweenChildren: 12,
+      closeManually: false,
+
+      // 主 FAB 图标 (未展开状态)
+      child: LiquidGlassContainer(
+        width: fabSize,
+        height: fabSize,
+        borderRadius: fabRadius,
+        refractionIntensity: 3,
+        child: const Center(
+          child: Icon(Icons.keyboard_arrow_up, color: Colors.black),
+        ),
+      ),
+
+      // 主 FAB 图标 (已展开状态)
+      activeChild: LiquidGlassContainer(
+        width: fabSize,
+        height: fabSize,
+        borderRadius: fabRadius,
+        refractionIntensity: 3,
+        child: const Center(
+          child: Icon(Icons.close, color: Colors.black),
+        ),
+      ),
+
+      // 弹出子按钮列表
+      children: [
+        SpeedDialChild(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          label: '2025 Wrap',
+          labelBackgroundColor: Colors.white.withOpacity(0.75),
+          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+          child: LiquidGlassContainer(
+            width: childSize,
+            height: childSize,
+            borderRadius: childRadius,
+            refractionIntensity: 3,
+            child: const Center(
+              child: Icon(Icons.bar_chart, color: Colors.black),
+            ),
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => wrap2025.AnnualReportPage()),
+            );
+          },
+        ),
+        SpeedDialChild(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          label: 'Math PvP',
+          labelBackgroundColor: Colors.white.withOpacity(0.75),
+          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+          child: LiquidGlassContainer(
+            width: childSize,
+            height: childSize,
+            borderRadius: childRadius,
+            refractionIntensity: 3,
+            child: const Center(
+              child: Icon(Icons.sports_mma, color: Colors.black),
+            ),
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => BattlePage()),
+            );
+          },
+        ),
+        SpeedDialChild(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          label: 'Cached Problems',
+          labelBackgroundColor: Colors.white.withOpacity(0.75),
+          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+          child: LiquidGlassContainer(
+            width: childSize,
+            height: childSize,
+            borderRadius: childRadius,
+            refractionIntensity: 3,
+            child: const Center(
+              child: Icon(Icons.save, color: Colors.black),
+            ),
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => CachedPage()),
+            );
+          },
+        ),
+      ],
     );
   }
 }

@@ -110,8 +110,16 @@ class _ProblemsState extends ConsumerState<Problems> {
   }
 
   Widget _buildFilter() {
+    final double bottomSafeArea = MediaQuery.of(context).padding.bottom;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      // 修改为带 bottom 的 padding
+      padding: EdgeInsets.only(
+        top: 12,
+        left: 12,
+        right: 12,
+        bottom: 90 + bottomSafeArea,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -198,6 +206,8 @@ class _ProblemsState extends ConsumerState<Problems> {
   }
 
   Widget _buildList() {
+    final double bottomSafeArea = MediaQuery.of(context).padding.bottom;
+
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -238,6 +248,8 @@ class _ProblemsState extends ConsumerState<Problems> {
           ),
           Expanded(
             child: SingleChildScrollView(
+              // 关键增加 padding，避免底部 ListTile 被导航栏遮挡
+              padding: EdgeInsets.only(bottom: 90 + bottomSafeArea),
               child: Column(
                 children: _render(),
               ),

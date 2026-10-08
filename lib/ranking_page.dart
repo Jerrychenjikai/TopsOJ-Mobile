@@ -92,8 +92,11 @@ class PvpLeaderboardWidget extends StatelessWidget {
           );
         }
 
+        final double bottomSafeArea = MediaQuery.of(context).padding.bottom;
+
         return ListView(
-          padding: const EdgeInsets.only(bottom: 16),
+          // 修改 padding.bottom 为 90 + bottomSafeArea
+          padding: EdgeInsets.only(bottom: 90 + bottomSafeArea),
           children: tierWidgets,
         );
       },
@@ -264,6 +267,10 @@ class _RankingState extends ConsumerState<RankingPage> {
               currentRank++;
             }
             _leaderboard_render = ListView(
+              // 关键：给 ListView 加上底部 padding
+              padding: EdgeInsets.only(
+                bottom: 90 + MediaQuery.of(context).padding.bottom,
+              ),
               children: [
                 ..._leaderboard_render_list,
               ],
@@ -326,9 +333,8 @@ class _RankingState extends ConsumerState<RankingPage> {
                         child: const Center(child: CircularProgressIndicator()),
                     );
                 }
-                return SafeArea(
-                    child: Padding(
-                        padding: const EdgeInsets.all(16),
+                return Padding(
+                    padding: const EdgeInsets.only(top: 16, left: 16, right: 16),
                         child: Column(
                             children: [
                                 Row(
@@ -391,7 +397,6 @@ class _RankingState extends ConsumerState<RankingPage> {
                                 ),
                             ],
                         ),
-                    ),
                 );
             },
         );

@@ -329,11 +329,17 @@ class HomePage extends ConsumerWidget {
             }
             return result;
           }
+          
+          final double bottomSafeArea = MediaQuery.of(context).padding.bottom;
 
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+
+          return SingleChildScrollView(
+            padding: EdgeInsets.only(
+              top: 16.0,
+              left: 16.0,
+              right: 16.0,
+              bottom: 90.0 + bottomSafeArea, // 导航栏高度 + 安全边距[cite: 2]
+            ),
                 child: columns >= 2
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,8 +363,6 @@ class HomePage extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: withSeparators([0, 1, 2].map(buildCardWidget).toList()),
                       ),
-              ),
-            ),
           );
         },
       ),
