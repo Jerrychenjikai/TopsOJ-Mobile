@@ -13,7 +13,7 @@ class SnapshotConfig {
 
   const SnapshotConfig({
     this.blurSigma = 8.0,
-    this.darkenOpacity = 0.05,
+    this.darkenOpacity = 0.00,
   });
 
   @override
@@ -1102,7 +1102,7 @@ Future<T?> showLiquidGlassPopup<T>({
               config:
                   const SnapshotConfig(
                 blurSigma: 8.0,
-                darkenOpacity: 0.05,
+                darkenOpacity: 0.00,
               ),
             );
 
