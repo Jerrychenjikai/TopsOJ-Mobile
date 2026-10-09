@@ -4,18 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/index_providers.dart';
+import 'basic/ui_basic.dart';
 
 class PvpLeaderboardWidget extends StatelessWidget {
   const PvpLeaderboardWidget({super.key});
 
-  /// 异步拉取并解析排行榜数据
-  // 修改返回类型：List<List<Map<String, dynamic>>>
   Future<List<List<Map<String, dynamic>>>> _fetchLeaderboard() async {
     final response = await fetchPvpLeaderboard();
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final List<dynamic> usersList = data['data']['users'];
-      // 修改映射逻辑：将每个元素转为 Map 列表
       return usersList.map((e) =>
         (e as List<dynamic>).map((obj) => Map<String, dynamic>.from(obj)).toList()
       ).toList();
@@ -28,15 +26,13 @@ class PvpLeaderboardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<List<Map<String, dynamic>>>>( // 更新类型参数
+    return FutureBuilder<List<List<Map<String, dynamic>>>>(
       future: _fetchLeaderboard(),
       builder: (context, snapshot) {
-        // 加载中
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // 错误处理：显示错误文字 + 弹出 SnackBar
         if (snapshot.hasError) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -60,22 +56,20 @@ class PvpLeaderboardWidget extends StatelessWidget {
 
         final tiers = snapshot.data!;
 
-        // 空数据
         if (tiers.isEmpty) {
           return const Center(child: Text('Play math pvp with someone else to join the leaderboard'));
         }
 
-        // 构建分层卡片列表
         final List<Widget> tierWidgets = [];
-        int currentRank = 1; // 全局序号，跨层递增
+        int currentRank = 1;
 
         for (int i = 0; i < tiers.length; i++) {
           final tier = tiers[i];
           if (tier.isEmpty) continue;
 
           final List<Widget> children = [];
-          for (final userMap in tier) { // 原来是 userId，现改为 userMap
-            children.add(_buildUserTile(userMap, currentRank)); // 传递 Map
+          for (final userMap in tier) {
+            children.add(_buildUserTile(userMap, currentRank));
             currentRank++;
           }
 
@@ -92,24 +86,22 @@ class PvpLeaderboardWidget extends StatelessWidget {
           );
         }
 
+        final double topSafeArea = MediaQuery.of(context).padding.top;
         final double bottomSafeArea = MediaQuery.of(context).padding.bottom;
 
         return ListView(
-          // 修改 padding.bottom 为 90 + bottomSafeArea
-          padding: EdgeInsets.only(bottom: 90 + bottomSafeArea),
+          // 避让 App Bar + 胶囊栏的高度 (topSafeArea + 68)
+          padding: EdgeInsets.only(top: topSafeArea + 68, bottom: 90 + bottomSafeArea),
           children: tierWidgets,
         );
       },
     );
   }
 
-  /// 构建单个用户条目，样式与原有排行榜保持一致
-  // 修改参数类型：接收用户数据 Map
   Widget _buildUserTile(Map<String, dynamic> user, int rank) {
     final int userId = user['id'] as int;
-    final String username = user['username'] as String? ?? 'User $userId'; // 优先显示 username
+    final String username = user['username'] as String? ?? 'User $userId';
 
-    // 奖牌图标或数字序号
     Widget leading;
     if (rank <= 3) {
       Color medalColor;
@@ -146,11 +138,10 @@ class PvpLeaderboardWidget extends StatelessWidget {
       );
     }
 
-    // 标题显示用户名（而不是 User id）
     return ListTile(
       leading: leading,
       title: Text(
-        username, // 原来这里是 'User $userId'
+        username,
         style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
       ),
       dense: true,
@@ -159,246 +150,275 @@ class PvpLeaderboardWidget extends StatelessWidget {
 }
 
 class RankingPage extends ConsumerStatefulWidget {
-    const RankingPage({super.key});
+  const RankingPage({super.key});
 
-    @override
-    _RankingState createState() => _RankingState();
+  @override
+  _RankingState createState() => _RankingState();
 }
 
 class _RankingState extends ConsumerState<RankingPage> {
-    int _page = 1;
-    int _total_page = 1;
-    String _ranking_category = "total points";
-    final List<String> categories = ['total points','rating','triangulate','mental math', 'math pvp'];
-    
-    List<Widget> _leaderboard_render_list = [];
-    Widget _leaderboard_render = const Center(child: CircularProgressIndicator());
+  int _page = 1;
+  int _total_page = 1;
+  String _ranking_category = "total points";
+  final List<String> categories = ['total points', 'rating', 'triangulate', 'mental math', 'math pvp'];
 
-    Future<void> _fetch_ranking_data() async {
-      if(_ranking_category == "math pvp"){
-        _leaderboard_render = PvpLeaderboardWidget();
-        return;
-      }
+  // 排行榜专用的背景捕获 Key
+  final GlobalKey _rankingListKey = GlobalKey();
 
-      _leaderboard_render_list = [];
+  List<Widget> _leaderboard_render_list = [];
+  Widget _leaderboard_render = const Center(child: CircularProgressIndicator());
 
-      try {
-        final response = await fetchRanking(_page, _ranking_category);
+  Future<void> _fetch_ranking_data() async {
+    if (_ranking_category == "math pvp") {
+      _leaderboard_render = const PvpLeaderboardWidget();
+      return;
+    }
 
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> jsonResponse = json.decode(response.body);
+    _leaderboard_render_list = [];
 
-          if (jsonResponse['status'] == 'success') {
-            final data = jsonResponse['data'];
-            final List<dynamic> users = data['users'];
+    try {
+      final response = await fetchRanking(_page, _ranking_category);
 
-            _leaderboard_render_list = [];
-            int currentRank = (_page - 1) * 30 + 1;
-            _total_page = (data['length']/30).ceil();
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
 
-            for (var user in users) {
-              final String username = user['username'];
-              final String points = user['points'].toString();
+        if (jsonResponse['status'] == 'success') {
+          final data = jsonResponse['data'];
+          final List<dynamic> users = data['users'];
 
-              // 前三名用奖牌图标
-              Widget leading;
-              if (currentRank <= 3) {
-                Color medalColor;
-                switch (currentRank) {
-                  case 1:
-                    medalColor = Colors.amber;
-                    break;
-                  case 2:
-                    medalColor = Colors.grey.shade400;
-                    break;
-                  case 3:
-                    medalColor = Colors.brown.shade400;
-                    break;
-                  default:
-                    medalColor = Colors.grey;
-                }
-                leading = Icon(
-                  Icons.emoji_events_rounded,
-                  color: medalColor,
-                  size: 35,
-                );
-              } else {
-                leading = Container(
-                  width: 35,
-                  alignment: Alignment.center,
-                  child: Text(
-                    currentRank.toString(),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                );
+          _leaderboard_render_list = [];
+          int currentRank = (_page - 1) * 30 + 1;
+          _total_page = (data['length'] / 30).ceil();
+
+          for (var user in users) {
+            final String username = user['username'];
+            final String points = user['points'].toString();
+
+            Widget leading;
+            if (currentRank <= 3) {
+              Color medalColor;
+              switch (currentRank) {
+                case 1:
+                  medalColor = Colors.amber;
+                  break;
+                case 2:
+                  medalColor = Colors.grey.shade400;
+                  break;
+                case 3:
+                  medalColor = Colors.brown.shade400;
+                  break;
+                default:
+                  medalColor = Colors.grey;
               }
-
-              // 不同榜单的 trailing 显示文字
-              String trailingText = points;
-              if (_ranking_category == "total points") {
-                trailingText += " pts";
-              } else if (_ranking_category == "rating") {
-                trailingText += " rating";
-              } else if (_ranking_category == "triangulate") {
-                trailingText += " pixels"; // triangulate / mental math 都是 score
-              } else {
-                trailingText += " s";
-              }
-
-              _leaderboard_render_list.add(
-                ListTile(
-                  leading: leading,
-                  title: Text(
-                    username,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              leading = Icon(
+                Icons.emoji_events_rounded,
+                color: medalColor,
+                size: 35,
+              );
+            } else {
+              leading = Container(
+                width: 35,
+                alignment: Alignment.center,
+                child: Text(
+                  currentRank.toString(),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
                   ),
-                  trailing: Text(
-                    trailingText,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  dense: true,
                 ),
               );
-
-              currentRank++;
             }
-            _leaderboard_render = ListView(
-              // 关键：给 ListView 加上底部 padding
-              padding: EdgeInsets.only(
-                bottom: 90 + MediaQuery.of(context).padding.bottom,
+
+            String trailingText = points;
+            if (_ranking_category == "total points") {
+              trailingText += " pts";
+            } else if (_ranking_category == "rating") {
+              trailingText += " rating";
+            } else if (_ranking_category == "triangulate") {
+              trailingText += " pixels";
+            } else {
+              trailingText += " s";
+            }
+
+            _leaderboard_render_list.add(
+              ListTile(
+                leading: leading,
+                title: Text(
+                  username,
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                ),
+                trailing: Text(
+                  trailingText,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                dense: true,
               ),
-              children: [
-                ..._leaderboard_render_list,
-              ],
             );
-          } else {
-            // 后端返回了错误状态
-            final errorMsg = jsonResponse['error'] ?? jsonResponse['message'] ?? '未知错误';
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("failed to fetch ranking: ${response.statusCode} $errorMsg"),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
+
+            currentRank++;
           }
+          _leaderboard_render = ListView(
+            // 避让顶部 App Bar + 悬浮胶囊栏 (topSafeArea + 68)
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 68,
+              bottom: 90 + MediaQuery.of(context).padding.bottom,
+            ),
+            children: [
+              ..._leaderboard_render_list,
+            ],
+          );
         } else {
-          // HTTP 错误
+          final errorMsg = jsonResponse['error'] ?? jsonResponse['message'] ?? '未知错误';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("failed to fetch ranking: ${response.statusCode} ${response.reasonPhrase ?? response.body}"),
+              content: Text("failed to fetch ranking: ${response.statusCode} $errorMsg"),
               backgroundColor: Colors.redAccent,
             ),
           );
         }
-      } catch (e) {
-        // 网络异常、解析异常等
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("failed to fetch ranking: error ${e.toString()}"),
+            content: Text("failed to fetch ranking: ${response.statusCode} ${response.reasonPhrase ?? response.body}"),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("failed to fetch ranking: error ${e.toString()}"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
+  }
 
-    Widget build(BuildContext context){ 
-        ref.listen<String?>(
-          mainPageProvider.select((state) => state.ranking_category),
-          (prev, next) {
-            if (next == null) return;
+  @override
+  Widget build(BuildContext context) {
+    final double topSafeArea = MediaQuery.of(context).padding.top;
 
-            if (_ranking_category != next) {
-              _ranking_category = next;
-              print(next);
+    ref.listen<String?>(
+      mainPageProvider.select((state) => state.ranking_category),
+      (prev, next) {
+        if (next == null) return;
 
-              setState((){
-                _fetch_ranking_data();
-              });
-            }
+        if (_ranking_category != next) {
+          _ranking_category = next;
 
-            ref.read(mainPageProvider.notifier).update(
-              (state) => state.copyWith(ranking_category: null),
-            );
-          },
+          setState(() {
+            _fetch_ranking_data();
+          });
+        }
+
+        ref.read(mainPageProvider.notifier).update(
+          (state) => state.copyWith(ranking_category: null),
         );
-        return FutureBuilder(
-            future: _fetch_ranking_data(),
-            builder: (context, snapshot){
-                if (snapshot.connectionState != ConnectionState.done){
-                    return Center(
-                        child: const Center(child: CircularProgressIndicator()),
-                    );
-                }
-                return Padding(
-                    padding: const EdgeInsets.only(top: 16, left: 16, right: 16),
-                        child: Column(
-                            children: [
-                                Row(
-                                  children: [
-                                    if (_page > 1 && _ranking_category != 'math pvp')
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            _page--;
-                                            _fetch_ranking_data();
-                                          });
-                                        },
-                                        child: const Icon(Icons.arrow_back),
-                                      ),
+      },
+    );
 
-                                    const Spacer(),   // 关键：让下拉菜单始终居中
+    return FutureBuilder(
+      future: _fetch_ranking_data(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
 
-                                    // 原 DropdownButton（完全不变）
-                                    SizedBox(
-                                      width: 150, // 想要的宽度
-                                      child: DropdownButton<String>(
-                                        isExpanded: true,
-                                        value: _ranking_category,
-                                        hint: Text('Please choose ranking category'),
-                                        underline: Container(
-                                          height: 2,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                        items: categories.map((String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value),
-                                          );
-                                        }).toList(),
-                                        onChanged: (String? newValue) {
-                                          setState(() {
-                                            _ranking_category = newValue ?? "total points";
-                                            _fetch_ranking_data();
-                                          });
-                                        },
-                                      ),
-                                    ),
+        return LiquidGlassScope(
+          repaintBoundaryKey: _rankingListKey,
+          child: Stack(
+            children: [
+              // 1. 底层：纯列表，避让上方遮挡
+              NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is ScrollUpdateNotification) {
+                    LiquidGlassScope.notifyUpdate(context);
+                  }
+                  return false;
+                },
+                child: RepaintBoundary(
+                  key: _rankingListKey,
+                  child: _leaderboard_render,
+                ),
+              ),
 
-                                    const Spacer(),   // 关键：让下拉菜单始终居中
+              // 2. 顶层：悬浮在 App Bar 下方的分类选择胶囊
+              Positioned(
+                top: topSafeArea, // 避开状态栏 height + App Bar 60px
+                left: 16,
+                right: 16,
+                child: LiquidGlassContainer(
+                  height: 52,
+                  borderRadius: 26,
+                  refractionIntensity: 3.5,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        if (_page > 1 && _ranking_category != 'math pvp')
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: () {
+                              setState(() {
+                                _page--;
+                                _fetch_ranking_data();
+                              });
+                            },
+                          )
+                        else
+                          const SizedBox(width: 48),
 
-                                    if (_page < _total_page && _ranking_category != 'math pvp')
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            _page++;
-                                            _fetch_ranking_data();
-                                          });
-                                        },
-                                        child: const Icon(Icons.arrow_forward),
-                                      ),
-                                  ],
-                                ),
-                                Expanded(
-                                  child: _leaderboard_render,
-                                ),
-                            ],
+                        const Spacer(),
+
+                        SizedBox(
+                          width: 140,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: _ranking_category,
+                              hint: const Text('Please choose ranking category'),
+                              items: categories.map((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value, overflow: TextOverflow.ellipsis),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _ranking_category = newValue ?? "total points";
+                                  _fetch_ranking_data();
+                                });
+                              },
+                            ),
+                          ),
                         ),
-                );
-            },
+
+                        const Spacer(),
+
+                        if (_page < _total_page && _ranking_category != 'math pvp')
+                          IconButton(
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: () {
+                              setState(() {
+                                _page++;
+                                _fetch_ranking_data();
+                              });
+                            },
+                          )
+                        else
+                          const SizedBox(width: 48),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
-    }
+      },
+    );
+  }
 }

@@ -330,39 +330,39 @@ class HomePage extends ConsumerWidget {
             return result;
           }
           
+          final double topSafeArea = MediaQuery.of(context).padding.top;
           final double bottomSafeArea = MediaQuery.of(context).padding.bottom;
-
 
           return SingleChildScrollView(
             padding: EdgeInsets.only(
-              top: 16.0,
+              top: topSafeArea, // 避让顶部状态栏 + 液态玻璃 App Bar 高度 (52 + 16 间距)
               left: 16.0,
               right: 16.0,
               bottom: 90.0 + bottomSafeArea, // 导航栏高度 + 安全边距[cite: 2]
             ),
-                child: columns >= 2
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: withSeparators([0].map(buildCardWidget).toList()),
-                            ),
-                          ),
-                          const SizedBox(width: 16.0),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: withSeparators([1,2].map(buildCardWidget).toList()),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: withSeparators([0, 1, 2].map(buildCardWidget).toList()),
+            child: columns >= 2
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: withSeparators([0].map(buildCardWidget).toList()),
+                        ),
                       ),
+                      const SizedBox(width: 16.0),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: withSeparators([1, 2].map(buildCardWidget).toList()),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: withSeparators([0, 1, 2].map(buildCardWidget).toList()),
+                  ),
           );
         },
       ),

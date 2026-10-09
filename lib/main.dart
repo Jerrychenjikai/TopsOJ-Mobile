@@ -24,7 +24,6 @@ import 'package:TopsOJ/home_page.dart';
 import 'package:TopsOJ/index_providers.dart';
 import 'basic/ui_basic.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();  
 
@@ -39,10 +38,10 @@ void main() async {
     ),
   );
 
-  // 提前加载好 Shader[cite: 1]
-  await preloadLiquidGlassShader(); //[cite: 1]
-  PackageInfo packageInfo = await PackageInfo.fromPlatform(); //[cite: 1]
-  runApp(const ProviderScope(child: TopsOJ())); //[cite: 1]
+  // 提前加载好 Shader
+  await preloadLiquidGlassShader();
+  PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  runApp(const ProviderScope(child: TopsOJ()));
 }
 
 class TopsOJ extends StatelessWidget {
@@ -212,6 +211,7 @@ class _MainPageState extends ConsumerState<MainPage> {
       repaintBoundaryKey: _backgroundKey,
       child: Scaffold(
         extendBody: true, // 核心：让 body 延伸到底部导航栏下方
+        extendBodyBehindAppBar: true, // 核心：让 body 延伸到顶部 AppBar 下方
         drawer: Drawer(
           width: max(min(MediaQuery.of(context).size.width * 0.75, 500), 350),
           child: SafeArea(
@@ -276,15 +276,7 @@ class _MainPageState extends ConsumerState<MainPage> {
             _makeRequest();
           }
         },
-        appBar: AppBar(
-          title: Text(_tabTitles[currentIndex]),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.person_2_outlined),
-              onPressed: _logout,
-            ),
-          ],
-        ),
+        appBar: _buildLiquidAppBar(context, _tabTitles[currentIndex]),
         floatingActionButton: _buildLiquidSpeedDial(context),
         body: RepaintBoundary(
           key: _backgroundKey,
@@ -298,6 +290,60 @@ class _MainPageState extends ConsumerState<MainPage> {
           ),
         ),
         bottomNavigationBar: _buildLiquidBottomNavigationBar(context, currentIndex),
+      ),
+    );
+  }
+
+  /// 完全透明的 Liquid Glass 顶部导航栏
+  PreferredSizeWidget _buildLiquidAppBar(BuildContext context, String title) {
+    final double statusBarHeight = MediaQuery.of(context).padding.top;
+    const double barHeight = 52.0;
+    const double borderRadius = barHeight / 2; // 圆角半径等于高度的一半 (26.0)
+
+    return PreferredSize(
+      preferredSize: Size.fromHeight(statusBarHeight + barHeight + 8),
+      child: Container(
+        color: Colors.transparent, // 确保背景透明
+        padding: EdgeInsets.only(
+          top: statusBarHeight + 4,
+          left: 16,
+          right: 16,
+          bottom: 4,
+        ),
+        child: LiquidGlassContainer(
+          height: barHeight,
+          borderRadius: borderRadius,
+          refractionIntensity: 3.5,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              children: [
+                // 抽屉菜单打开按钮
+                Builder(
+                  builder: (scaffoldContext) => IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () => Scaffold.of(scaffoldContext).openDrawer(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 页面标题
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                // 登出/个人按钮
+                IconButton(
+                  icon: const Icon(Icons.person_2_outlined),
+                  onPressed: _logout,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
