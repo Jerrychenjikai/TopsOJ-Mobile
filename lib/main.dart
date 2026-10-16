@@ -213,56 +213,69 @@ class _MainPageState extends ConsumerState<MainPage> {
         extendBody: true, // 核心：让 body 延伸到底部导航栏下方
         extendBodyBehindAppBar: true, // 核心：让 body 延伸到顶部 AppBar 下方
         drawer: Drawer(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           width: max(min(MediaQuery.of(context).size.width * 0.75, 500), 350),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
+              child: ListView(
                 children: [
-                  Text(
-                    _response,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                  LiquidGlassContainer(
+                    borderRadius: 32,
+                    refractionIntensity: 3.5,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Text(
+                            _response,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 12),
+                          Text("Join date: ${_userinfo['join_date']}"),
+                          const SizedBox(height: 5),
+                          Text("Total Points: ${_userinfo['total_points']}"),
+                          const SizedBox(height: 5),
+                          Text("Streak: ${_userinfo['streak']}"),
+                        ],
+                      ),
+                    ),
                   ),
-                  Expanded(
-                    child: ListView(
+                  const SizedBox(height: 15),
+                  LiquidGlassContainer(
+                    borderRadius: 32,
+                    refractionIntensity: 3.5,
+                    child: Column(
                       children: [
-                        Text("Join date: ${_userinfo['join_date']}"),
-                        const SizedBox(height: 5),
-                        Text("Total Points: ${_userinfo['total_points']}"),
-                        const SizedBox(height: 5),
-                        Text("Streak: ${_userinfo['streak']}"),
-                        const SizedBox(height: 15),
-
-                        Card(
-                          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Weekly Leaderboard",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                              ),
-                              ..._weeklylb_render,
-                            ],
-                          ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          "Weekly Leaderboard",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 15),
-                        Card(
-                          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Problems you might find challenging",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                              ),
-                              ..._precommend_render,
-                            ],
-                          ),
+                        ..._weeklylb_render,
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  LiquidGlassContainer(
+                    borderRadius: 32,
+                    refractionIntensity: 3.5,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        const Text(
+                          "Problems you might find challenging",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                         ),
+                        ..._precommend_render,
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
