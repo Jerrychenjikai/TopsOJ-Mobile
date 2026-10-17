@@ -15,9 +15,7 @@ class HomePage extends ConsumerWidget {
     // You can access Riverpod providers here if needed, e.g., ref.watch(someProvider);
     // For now, assuming no specific providers are required.
 
-    return Container(
-      color: Theme.of(context).colorScheme.background, // Use theme background color
-      child: LayoutBuilder(
+    return LayoutBuilder(
         builder: (context, constraints) {
           // Calculate number of columns based on screen width
           int columns = (constraints.maxWidth / 400).floor();
@@ -365,7 +363,6 @@ class HomePage extends ConsumerWidget {
                   ),
           );
         },
-      ),
     );
   }
 }

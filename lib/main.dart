@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // 1. 引入 services 包
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:ui' as ui; // ← 新增：用于 ImageFilter
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,18 +28,16 @@ import 'basic/ui_basic.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();  
 
-  // 2. 开启 Edge-to-Edge，并将系统状态栏与底部导航栏设为全透明
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Colors.transparent, // 关键：系统底部导航栏透明
+      systemNavigationBarColor: Colors.transparent,
       systemNavigationBarDividerColor: Colors.transparent,
       systemNavigationBarContrastEnforced: false,
     ),
   );
 
-  // 提前加载好 Shader
   await preloadLiquidGlassShader();
   PackageInfo packageInfo = await PackageInfo.fromPlatform();
   runApp(const ProviderScope(child: TopsOJ()));
@@ -84,7 +83,6 @@ class TopsOJ extends StatelessWidget {
   }
 }
 
-// 主页面
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
 
@@ -98,8 +96,10 @@ class _MainPageState extends ConsumerState<MainPage> {
   List<Widget> _weeklylb_render = [];
   List<Widget> _precommend_render = [];
 
-  // 用于捕获主界面背景内容的 Key
   final GlobalKey _backgroundKey = GlobalKey();
+
+  // ← 新增：跟踪抽屉打开状态，用于控制 BackdropFilter
+  bool _isDrawerOpen = false;
 
   @override
   void initState() {
@@ -199,124 +199,151 @@ class _MainPageState extends ConsumerState<MainPage> {
   @override
   Widget build(BuildContext context) {
     final List<String> _tabTitles = const [
-      'TopsOJ',       // index 0
-      'Problems',     // index 1
+      'TopsOJ',
+      'Problems',
       'Rankings',
     ];
     final currentIndex = ref.watch(
       mainPageProvider.select((state) => state.index),
     );
 
+    final double topInset = MediaQuery.of(context).padding.top;
+    final double bottomInset = MediaQuery.of(context).padding.bottom;
+
     return LiquidGlassScope(
       repaintBoundaryKey: _backgroundKey,
       child: Scaffold(
-        extendBody: true, // 核心：让 body 延伸到底部导航栏下方
-        extendBodyBehindAppBar: true, // 核心：让 body 延伸到顶部 AppBar 下方
+        extendBody: true,
+        extendBodyBehindAppBar: true,
+        drawerScrimColor: Colors.black.withOpacity(0.12),
         drawer: Drawer(
           backgroundColor: Colors.transparent,
           elevation: 0,
           shadowColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           width: max(min(MediaQuery.of(context).size.width * 0.75, 500), 350),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ListView(
-                children: [
-                  LiquidGlassContainer(
-                    borderRadius: 32,
-                    refractionIntensity: 3.5,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Text(
-                            _response,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 12),
-                          Text("Join date: ${_userinfo['join_date']}"),
-                          const SizedBox(height: 5),
-                          Text("Total Points: ${_userinfo['total_points']}"),
-                          const SizedBox(height: 5),
-                          Text("Streak: ${_userinfo['streak']}"),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  LiquidGlassContainer(
-                    borderRadius: 32,
-                    refractionIntensity: 3.5,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Weekly Leaderboard",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                        ),
-                        ..._weeklylb_render,
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  LiquidGlassContainer(
-                    borderRadius: 32,
-                    refractionIntensity: 3.5,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Problems you might find challenging",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                        ),
-                        ..._precommend_render,
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          child: ListView(
+            padding: EdgeInsets.only(
+              top: topInset + 16,
+              bottom: bottomInset + 16,
+              left: 16,
+              right: 16,
             ),
+            children: [
+              LiquidGlassContainer(
+                borderRadius: 32,
+                refractionIntensity: 3.5,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        _response,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      Text("Join date: ${_userinfo['join_date']}"),
+                      const SizedBox(height: 5),
+                      Text("Total Points: ${_userinfo['total_points']}"),
+                      const SizedBox(height: 5),
+                      Text("Streak: ${_userinfo['streak']}"),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              LiquidGlassContainer(
+                borderRadius: 32,
+                refractionIntensity: 3.5,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Weekly Leaderboard",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                    ..._weeklylb_render,
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
+              LiquidGlassContainer(
+                borderRadius: 32,
+                refractionIntensity: 3.5,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Problems you might find challenging",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                    ..._precommend_render,
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
         onDrawerChanged: (isOpened) {
+          // ← 关键：同步抽屉打开状态，让 BackdropFilter 出现/消失
+          if (mounted) {
+            setState(() {
+              _isDrawerOpen = isOpened;
+            });
+          }
           if (isOpened) {
             _makeRequest();
           }
         },
         appBar: _buildLiquidAppBar(context, _tabTitles[currentIndex]),
         floatingActionButton: _buildLiquidSpeedDial(context),
-        body: RepaintBoundary(
-          key: _backgroundKey,
-          child: IndexedStack(
-            index: currentIndex,
-            children: const [
-              HomePage(),
-              Problems(),
-              RankingPage(),
-            ],
-          ),
+        // ← 核心改动：body 用 Stack 包裹
+        // 底层是原来的 RepaintBoundary + IndexedStack（LiquidGlass 的背景源）
+        // 顶层是 BackdropFilter（仅当抽屉打开时存在），模糊的是它下面的 body 内容
+        body: Stack(
+          children: [
+            RepaintBoundary(
+              key: _backgroundKey,
+              child: IndexedStack(
+                index: currentIndex,
+                children: const [
+                  HomePage(),
+                  Problems(),
+                  RankingPage(),
+                ],
+              ),
+            ),
+            if (_isDrawerOpen)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: BackdropFilter(
+                    // 4px 高斯模糊（sigmaX/Y = 4）
+                    filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+          ],
         ),
         bottomNavigationBar: _buildLiquidBottomNavigationBar(context, currentIndex),
       ),
     );
   }
 
-  /// 完全透明的 Liquid Glass 顶部导航栏
   PreferredSizeWidget _buildLiquidAppBar(BuildContext context, String title) {
     final double statusBarHeight = MediaQuery.of(context).padding.top;
     const double barHeight = 52.0;
-    const double borderRadius = barHeight / 2; // 圆角半径等于高度的一半 (26.0)
+    const double borderRadius = barHeight / 2;
 
     return PreferredSize(
       preferredSize: Size.fromHeight(statusBarHeight + barHeight + 8),
       child: Container(
-        color: Colors.transparent, // 确保背景透明
+        color: Colors.transparent,
         padding: EdgeInsets.only(
           top: statusBarHeight + 4,
           left: 16,
@@ -331,7 +358,6 @@ class _MainPageState extends ConsumerState<MainPage> {
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Row(
               children: [
-                // 抽屉菜单打开按钮
                 Builder(
                   builder: (scaffoldContext) => IconButton(
                     icon: const Icon(Icons.menu),
@@ -339,7 +365,6 @@ class _MainPageState extends ConsumerState<MainPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // 页面标题
                 Text(
                   title,
                   style: const TextStyle(
@@ -348,7 +373,6 @@ class _MainPageState extends ConsumerState<MainPage> {
                   ),
                 ),
                 const Spacer(),
-                // 登出/个人按钮
                 IconButton(
                   icon: const Icon(Icons.person_2_outlined),
                   onPressed: _logout,
@@ -361,10 +385,9 @@ class _MainPageState extends ConsumerState<MainPage> {
     );
   }
 
-  /// 完全透明的 Liquid Glass 底部导航条
   Widget _buildLiquidBottomNavigationBar(BuildContext context, int currentIndex) {
     const double navBarHeight = 64.0;
-    const double borderRadius = navBarHeight / 2; // 圆角半径等于高度的一半 (32.0)
+    const double borderRadius = navBarHeight / 2;
 
     final theme = Theme.of(context);
     final selectedColor = theme.colorScheme.primary;
@@ -377,7 +400,7 @@ class _MainPageState extends ConsumerState<MainPage> {
     ];
 
     return Container(
-      color: Colors.transparent, // 确保无任何实体背景层
+      color: Colors.transparent,
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
@@ -398,12 +421,14 @@ class _MainPageState extends ConsumerState<MainPage> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(borderRadius),
                 onTap: () {
+                  final current = ref.read(mainPageProvider).index;
+                  if (current == index) return;
+
                   ref.read(mainPageProvider.notifier).update((state) => (
                     index: index,
                     search: null,
                     ranking_category: null,
                   ));
-                  // 待新页面在 IndexedStack 中绘制完成后更新液态玻璃折射纹理
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (context.mounted) {
                       LiquidGlassScope.notifyUpdate(context);
@@ -437,13 +462,12 @@ class _MainPageState extends ConsumerState<MainPage> {
     );
   }
 
-  /// Liquid Glass 样式的 SpeedDial (Floating Action Button)
   Widget _buildLiquidSpeedDial(BuildContext context) {
     const double fabSize = 56.0;
-    const double fabRadius = fabSize / 2; // 圆形 (28.0)
+    const double fabRadius = fabSize / 2;
 
     const double childSize = 48.0;
-    const double childRadius = childSize / 2; // 圆形 (24.0)
+    const double childRadius = childSize / 2;
 
     return SpeedDial(
       elevation: 0,
@@ -456,7 +480,6 @@ class _MainPageState extends ConsumerState<MainPage> {
       spaceBetweenChildren: 12,
       closeManually: false,
 
-      // 主 FAB 图标 (未展开状态)
       child: LiquidGlassContainer(
         width: fabSize,
         height: fabSize,
@@ -467,7 +490,6 @@ class _MainPageState extends ConsumerState<MainPage> {
         ),
       ),
 
-      // 主 FAB 图标 (已展开状态)
       activeChild: LiquidGlassContainer(
         width: fabSize,
         height: fabSize,
@@ -478,7 +500,6 @@ class _MainPageState extends ConsumerState<MainPage> {
         ),
       ),
 
-      // 弹出子按钮列表
       children: [
         SpeedDialChild(
           elevation: 0,
