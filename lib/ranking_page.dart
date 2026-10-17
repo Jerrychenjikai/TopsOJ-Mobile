@@ -258,29 +258,15 @@ class _RankingState extends ConsumerState<RankingPage> {
 
             currentRank++;
           }
-          _leaderboard_render = SingleChildScrollView(
+          _leaderboard_render = ListView(
             // 避让顶部 App Bar + 悬浮胶囊栏 (topSafeArea + 68)
             padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top + 68,
               bottom: 90 + MediaQuery.of(context).padding.bottom,
             ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),     // 很淡的黑色 / 或用 shadowColor
-                    blurRadius: 8,                              // 模糊程度
-                    offset: const Offset(0, 2),                 // 向下偏移2像素（最自然）
-                    spreadRadius: 0.5,                          // 轻微向外扩张
-                  ),
-                ],
-              ),
-              child: Column(
-                children: _leaderboard_render_list,
-              ),
-            ),
+            children: [
+              ..._leaderboard_render_list,
+            ],
           );
         } else {
           final errorMsg = jsonResponse['error'] ?? jsonResponse['message'] ?? '未知错误';

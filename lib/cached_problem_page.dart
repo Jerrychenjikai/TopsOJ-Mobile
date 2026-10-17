@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:TopsOJ/problem_page.dart';
+import 'package:TopsOJ/problem_page/problem_page.dart';
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';

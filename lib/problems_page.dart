@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:TopsOJ/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
-import 'package:TopsOJ/problem_page.dart';
+import 'package:TopsOJ/problem_page/problem_page.dart';
 import 'package:TopsOJ/login_page.dart';
 import 'package:TopsOJ/template.dart';
 

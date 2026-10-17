@@ -20,7 +20,9 @@ import 'package:ble_peripheral/ble_peripheral.dart' as ble_peri;
 
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
-import 'package:TopsOJ/problem_page.dart';
+import 'package:TopsOJ/problem_page/problem_render.dart';
+import 'package:TopsOJ/problem_page/problem_submit.dart';
+
 
 sealed class BattleState {
   const BattleState();
@@ -1282,16 +1284,21 @@ class PlayingView extends ConsumerWidget {
             Expanded(
               child: Card( // 应用主题卡片风格
                 clipBehavior: Clip.antiAlias, // 让内容跟随圆角裁剪
-                child: Builder( // 使用 Builder 来创建一个新的 context，确保 ProblemPage 继承外部的 battleTheme
-                  builder: (BuildContext innerContext) {
-                    return ProblemPage(
-                      problemId: problemIds[questionIndex],
-                      isEmbedded: true,
-                      onSubmitResult: (passed) async {
-                        await notifier.sendAnswer(questionIndex, passed);
-                      },
-                    );
-                  },
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: problemRender(problemIds[questionIndex]),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: problemSubmit(
+                        problemIds[questionIndex],
+                        onSubmitResult: (passed) async {
+                          await notifier.sendAnswer(questionIndex, passed);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

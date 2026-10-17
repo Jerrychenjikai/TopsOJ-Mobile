@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/login_page.dart';
-import 'package:TopsOJ/problem_page.dart';
+import 'package:TopsOJ/problem_page/problem_page.dart';
 
 // 引入液态玻璃组件定义
 import 'basic/ui_basic.dart'; 
