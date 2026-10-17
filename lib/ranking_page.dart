@@ -353,7 +353,6 @@ class _RankingState extends ConsumerState<RankingPage> {
                 child: LiquidGlassContainer(
                   height: 52,
                   borderRadius: 26,
-                  refractionIntensity: 3.5,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(

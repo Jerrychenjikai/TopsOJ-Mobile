@@ -313,7 +313,6 @@ class _MainPageState extends ConsumerState<MainPage> {
         child: LiquidGlassContainer(
           height: barHeight,
           borderRadius: borderRadius,
-          refractionIntensity: 3.5,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Row(
@@ -374,7 +373,6 @@ class _MainPageState extends ConsumerState<MainPage> {
       child: LiquidGlassContainer(
         height: navBarHeight,
         borderRadius: borderRadius,
-        refractionIntensity: 3.5,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: List.generate(items.length, (index) {
@@ -448,7 +446,6 @@ class _MainPageState extends ConsumerState<MainPage> {
         width: fabSize,
         height: fabSize,
         borderRadius: fabRadius,
-        refractionIntensity: 3,
         child: const Center(
           child: Icon(Icons.keyboard_arrow_up, color: Colors.black),
         ),
@@ -459,7 +456,6 @@ class _MainPageState extends ConsumerState<MainPage> {
         width: fabSize,
         height: fabSize,
         borderRadius: fabRadius,
-        refractionIntensity: 3,
         child: const Center(
           child: Icon(Icons.close, color: Colors.black),
         ),
@@ -477,7 +473,6 @@ class _MainPageState extends ConsumerState<MainPage> {
             width: childSize,
             height: childSize,
             borderRadius: childRadius,
-            refractionIntensity: 3,
             child: const Center(
               child: Icon(Icons.bar_chart, color: Colors.black),
             ),
@@ -498,7 +493,6 @@ class _MainPageState extends ConsumerState<MainPage> {
             width: childSize,
             height: childSize,
             borderRadius: childRadius,
-            refractionIntensity: 3,
             child: const Center(
               child: Icon(Icons.sports_mma, color: Colors.black),
             ),
@@ -519,7 +513,6 @@ class _MainPageState extends ConsumerState<MainPage> {
             width: childSize,
             height: childSize,
             borderRadius: childRadius,
-            refractionIntensity: 3,
             child: const Center(
               child: Icon(Icons.save, color: Colors.black),
             ),

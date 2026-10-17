@@ -13,7 +13,7 @@ class SnapshotConfig {
   final double darkenOpacity;
 
   const SnapshotConfig({
-    this.blurSigma = 8.0,
+    this.blurSigma = 4.0,
     this.darkenOpacity = 0.00,
   });
 
@@ -698,22 +698,14 @@ class _LiquidGlassInherited extends InheritedWidget {
 // - ScrollPosition repaint
 // - RenderRepaintBoundary 相对坐标
 // ==========================================
-class LiquidGlassContainer
-    extends StatefulWidget {
+class LiquidGlassContainer extends StatefulWidget {
   final Widget child;
-
   final double width;
-
   final double height;
-
   final double borderRadius;
-
   final double edgeMargin;
-
   final ui.Image? backgroundImage;
-
   final double refractionIntensity;
-
   final Size? bgSize;
 
   const LiquidGlassContainer({
@@ -722,9 +714,9 @@ class LiquidGlassContainer
     this.width = double.infinity,
     this.height = double.infinity,
     this.borderRadius = 32.0,
-    this.edgeMargin = 30.0,
+    this.edgeMargin = 15.0,
     this.backgroundImage,
-    this.refractionIntensity = 3,
+    this.refractionIntensity = 4.5,
     this.bgSize,
   });
 
@@ -1123,21 +1115,13 @@ Future<T?> showLiquidGlassPopup<T>({
       'shaders/shader.frag',
 
   double width = 320,
-
   double height = 460,
-
   double borderRadius = 32.0,
-
   double edgeMargin = 30.0,
-
-  double refractionIntensity = 3,
-
+  double refractionIntensity = 4.5,
   Color barrierColor = Colors.black12,
-
   double mobileWidthThreshold = 600.0,
-
-  double mobileHeightThreshold =
-      1000.0,
+  double mobileHeightThreshold = 1000.0,
 }) async {
   // ------------------------------------------
   // 确保 Shader 已加载
@@ -1167,7 +1151,7 @@ Future<T?> showLiquidGlassPopup<T>({
               origImage,
               config:
                   const SnapshotConfig(
-                blurSigma: 8.0,
+                blurSigma: 4.0,
                 darkenOpacity: 0.00,
               ),
             );
