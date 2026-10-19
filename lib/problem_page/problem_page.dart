@@ -381,7 +381,7 @@ class _ProblemPageState extends State<ProblemPage> {
     final mq = MediaQuery.of(context);
     final double bottomInset = max(max(mq.padding.bottom, mq.viewPadding.bottom), 12);
     final bool showCalculator = _activated_tool == "calculator";
-    final double calculatorHeight = mq.size.height * 0.5;
+    final double calculatorHeight = mq.size.height * 0.4;
     const double panelRadius = 32;
 
     return Container(
