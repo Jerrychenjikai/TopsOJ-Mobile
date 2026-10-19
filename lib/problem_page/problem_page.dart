@@ -1,15 +1,15 @@
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:flutter_simple_calculator/flutter_simple_calculator.dart';
 
 import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
-import 'package:TopsOJ/template.dart';
 import 'package:TopsOJ/problem_page/problem_render.dart';
 import 'package:TopsOJ/problem_page/problem_submit.dart';
+import 'package:TopsOJ/basic/ui_basic.dart';
 
 /// 题目详情数据模型 (Data Class)
 class ProblemDetail {
@@ -80,28 +80,34 @@ class _ProblemPageState extends State<ProblemPage> {
   String _activated_tool = "none";
   double? _current_calculator_value = 0;
 
-  Widget? _buildTool() {
-    if (_activated_tool == "calculator") {
-      return Column(
-        children: [
-          Expanded(
-            child: SimpleCalculator(
-              value: _current_calculator_value ?? 0,
-              hideExpression: false,
-              hideSurroundingBorder: true,
-              autofocus: true,
-              onChanged: (key, value, expression) {
-                setState(() {
-                  _current_calculator_value = value; // 实时获取计算结果
-                });
-              },
-            ),
-          ),
-        ],
-      );
-    } else {
-      return null;
+  // 用于捕获题目正文背景的 Key，供液态玻璃折射
+  final GlobalKey _backgroundKey = GlobalKey();
+  String? _glassSyncedProblemId;
+
+  void _scheduleGlassUpdate(BuildContext glassContext) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!glassContext.mounted) return;
+      LiquidGlassScope.notifyUpdate(glassContext);
+    });
+  }
+
+  /// flutter_simple_calculator 的按钮色走 CalculatorThemeData：
+  /// 数字 numColor、运算符 operatorColor、功能键 commandColor、等号 equalColor。
+  /// 库的默认分别是 scaffold、primary、splash、secondary。这里不换色，只降低不透明度。
+  CalculatorThemeData _translucentCalculatorTheme(BuildContext context) {
+    final theme = Theme.of(context);
+    Color soften(Color color) {
+      final next = color.opacity >= 0.9 ? 0.5 : color.opacity * 0.8;
+      return color.withOpacity(next);
     }
+
+    return CalculatorThemeData(
+      numColor: soften(theme.scaffoldBackgroundColor),
+      operatorColor: soften(theme.primaryColor),
+      commandColor: soften(theme.splashColor),
+      equalColor: soften(theme.colorScheme.secondary),
+      borderColor: theme.dividerColor.withOpacity(0.35),
+    );
   }
 
   Future<void> _loadProblemData() async {
@@ -207,141 +213,360 @@ class _ProblemPageState extends State<ProblemPage> {
         final prev = _problemDetail?.prev ?? "";
         final nxt = _problemDetail?.nxt ?? "";
 
-        // 题目正文由 problem_render 负责；这里只保留原来 ListView 的外边距
-        final bodyContent = Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                child: problemRender(widget.problemId),
-              ),
-            ),
-            if (canPrev || canNxt)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    if (canPrev)
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => ProblemPage(problemId: prev),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text("Previous"),
-                      ),
-                    if (canNxt)
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => ProblemPage(problemId: nxt),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.arrow_forward),
-                        label: const Text("Next"),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        );
-
-        var splitBodyContent = ScreenSplitter(childA: bodyContent, childB: _buildTool());
-
         return WillPopScope(
           onWillPop: () async {
             Navigator.pop(context, true); // 手动传回是否需要刷新
             return false; // 阻止默认返回行为（因为我们手动pop了）
           },
-          child: Scaffold(
-            appBar: AppBar(
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      problemName,
-                      style: const TextStyle(fontSize: 22),
-                      overflow: TextOverflow.ellipsis,
+          child: LiquidGlassScope(
+            repaintBoundaryKey: _backgroundKey,
+            child: Builder(
+              builder: (glassContext) {
+                if (ready && _glassSyncedProblemId != widget.problemId) {
+                  _glassSyncedProblemId = widget.problemId;
+                  _scheduleGlassUpdate(glassContext);
+                }
+
+                return Scaffold(
+                  extendBody: true, // 让正文延伸到悬浮底栏下方
+                  extendBodyBehindAppBar: true, // 让正文延伸到悬浮顶栏后方
+                  appBar: _buildLiquidAppBar(glassContext, problemName, isSolved),
+                  floatingActionButton: _buildLiquidSpeedDial(glassContext),
+                  body: RepaintBoundary(
+                    key: _backgroundKey,
+                    // 列表上下仍然铺满全屏；左右只加 margin，不打断纵向滚动。
+                    child: Builder(
+                      builder: (bodyContext) {
+                        final mq = MediaQuery.of(bodyContext);
+                        final left = max(mq.padding.left, 20.0);
+                        final right = max(mq.padding.right, 20.0);
+                        return Padding(
+                          padding: EdgeInsets.only(left: left, right: right),
+                          child: MediaQuery(
+                            data: mq.copyWith(
+                              padding: mq.padding.copyWith(
+                                top: mq.padding.top + 16,
+                                bottom: mq.padding.bottom + 12,
+                                left: 0,
+                                right: 0,
+                              ),
+                            ),
+                            child: problemRender(widget.problemId),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  if (isSolved)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(Icons.check, color: Colors.green, size: 24),
-                    ),
-                ],
-              ),
-            ),
-            body: splitBodyContent,
-            bottomNavigationBar: Container(
-              padding: const EdgeInsets.all(16),
-              child: problemSubmit(
-                widget.problemId,
-                onSubmitResult: (passed) {
-                  if (passed) {
-                    setState(() {
-                      _problemDetail = _problemDetail?.copyWith(isSolved: true);
-                    });
-                  }
-                },
-              ),
-            ),
-            floatingActionButton: SpeedDial(
-              child: const Icon(Icons.keyboard_arrow_up),
-              closeManually: false,
-              activeChild: const Icon(Icons.close),
-              direction: SpeedDialDirection.up,
-              animationCurve: Curves.easeInOutCubic,
-              overlayColor: Theme.of(context).colorScheme.secondary,
-              overlayOpacity: 0.4,
-              spacing: 8,
-              spaceBetweenChildren: 12,
-              children: [
-                SpeedDialChild(
-                  child: const Icon(Icons.save),
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                  foregroundColor: Colors.black,
-                  label: 'Cache this problem',
-                  onTap: () async {
-                    if (_problemDetail != null) {
-                      await cache(
-                        widget.problemId,
-                        _problemDetail!.name,
-                        _problemDetail!.markdownData,
-                        _problemDetail!.nxt,
-                        _problemDetail!.prev,
-                      );
-                      setState(() {
-                        _problemDetail = _problemDetail!.copyWith(isCached: true);
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Problem Cached')),
-                      );
-                    }
-                  },
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.calculate),
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                  foregroundColor: Colors.black,
-                  label: 'Calculator',
-                  onTap: () {
-                    setState(() {
-                      _activated_tool = "calculator";
-                    });
-                  },
-                ),
-              ],
+                  bottomNavigationBar: _buildLiquidBottomBar(
+                    glassContext,
+                    canPrev: canPrev,
+                    canNxt: canNxt,
+                    prev: prev,
+                    nxt: nxt,
+                  ),
+                );
+              },
             ),
           ),
         );
       },
+    );
+  }
+
+  /// 悬浮在题目列表上方的液态玻璃顶栏
+  PreferredSizeWidget _buildLiquidAppBar(
+    BuildContext context,
+    String title,
+    bool isSolved,
+  ) {
+    final mq = MediaQuery.of(context);
+    final double statusBarHeight = max(mq.padding.top, mq.viewPadding.top);
+    const double barHeight = 52.0;
+    const double borderRadius = barHeight / 2;
+
+    return PreferredSize(
+      preferredSize: Size.fromHeight(statusBarHeight + barHeight + 8),
+      child: Container(
+        color: Colors.transparent,
+        padding: EdgeInsets.only(
+          top: statusBarHeight + 4,
+          left: 16,
+          right: 16,
+          bottom: 4,
+        ),
+        child: LiquidGlassContainer(
+          height: barHeight,
+          borderRadius: borderRadius,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.pop(context, true),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isSolved)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 12),
+                    child: Icon(Icons.check, color: Colors.green, size: 24),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 悬浮在列表上方的 Previous / Next。按钮铺满宽度，图标和文字居中。
+  Widget _buildGlassNavButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    const double height = 48.0;
+    const double radius = height / 2;
+
+    return LiquidGlassContainer(
+      height: height,
+      borderRadius: radius,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(radius),
+          onTap: onPressed,
+          child: SizedBox(
+            width: double.infinity,
+            height: height,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.black, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 底部悬浮玻璃：可选计算器 + 提交栏，Previous / Next 浮在它上方
+  Widget _buildLiquidBottomBar(
+    BuildContext context, {
+    required bool canPrev,
+    required bool canNxt,
+    required String prev,
+    required String nxt,
+  }) {
+    final mq = MediaQuery.of(context);
+    final double bottomInset = max(max(mq.padding.bottom, mq.viewPadding.bottom), 12);
+    final bool showCalculator = _activated_tool == "calculator";
+    final double calculatorHeight = mq.size.height * 0.5;
+    const double panelRadius = 32;
+
+    return Container(
+      color: Colors.transparent,
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 4,
+        bottom: bottomInset,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (canPrev || canNxt) ...[
+            Row(
+              children: [
+                if (canPrev)
+                  Expanded(
+                    child: _buildGlassNavButton(
+                      icon: Icons.arrow_back,
+                      label: "Previous",
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => ProblemPage(problemId: prev),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                if (canPrev && canNxt) const SizedBox(width: 12),
+                if (canNxt)
+                  Expanded(
+                    child: _buildGlassNavButton(
+                      icon: Icons.arrow_forward,
+                      label: "Next",
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => ProblemPage(problemId: nxt),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+          LiquidGlassContainer(
+            borderRadius: panelRadius,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(panelRadius),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showCalculator)
+                    SizedBox(
+                      height: calculatorHeight,
+                      child: SimpleCalculator(
+                        value: _current_calculator_value ?? 0,
+                        hideExpression: false,
+                        hideSurroundingBorder: true,
+                        autofocus: true,
+                        theme: _translucentCalculatorTheme(context),
+                        onChanged: (key, value, expression) {
+                          setState(() {
+                            _current_calculator_value = value;
+                          });
+                        },
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    child: problemSubmit(
+                      widget.problemId,
+                      onSubmitResult: (passed) {
+                        if (passed) {
+                          setState(() {
+                            _problemDetail = _problemDetail?.copyWith(isSolved: true);
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Liquid Glass 样式的 SpeedDial
+  Widget _buildLiquidSpeedDial(BuildContext context) {
+    const double fabSize = 56.0;
+    const double fabRadius = fabSize / 2;
+
+    const double childSize = 48.0;
+    const double childRadius = childSize / 2;
+
+    return SpeedDial(
+      heroTag: 'problem-page-speed-dial',
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      overlayColor: Theme.of(context).colorScheme.secondary,
+      overlayOpacity: 0.25,
+      direction: SpeedDialDirection.up,
+      animationCurve: Curves.easeInOutCubic,
+      spacing: 8,
+      spaceBetweenChildren: 12,
+      closeManually: false,
+      child: LiquidGlassContainer(
+        width: fabSize,
+        height: fabSize,
+        borderRadius: fabRadius,
+        child: const Center(
+          child: Icon(Icons.keyboard_arrow_up, color: Colors.black),
+        ),
+      ),
+      activeChild: LiquidGlassContainer(
+        width: fabSize,
+        height: fabSize,
+        borderRadius: fabRadius,
+        child: const Center(
+          child: Icon(Icons.close, color: Colors.black),
+        ),
+      ),
+      children: [
+        SpeedDialChild(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          label: 'Cache this problem',
+          labelBackgroundColor: Colors.white.withOpacity(0.75),
+          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+          child: LiquidGlassContainer(
+            width: childSize,
+            height: childSize,
+            borderRadius: childRadius,
+            child: const Center(
+              child: Icon(Icons.save, color: Colors.black),
+            ),
+          ),
+          onTap: () async {
+            if (_problemDetail != null) {
+              await cache(
+                widget.problemId,
+                _problemDetail!.name,
+                _problemDetail!.markdownData,
+                _problemDetail!.nxt,
+                _problemDetail!.prev,
+              );
+              setState(() {
+                _problemDetail = _problemDetail!.copyWith(isCached: true);
+              });
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Problem Cached')),
+              );
+            }
+          },
+        ),
+        SpeedDialChild(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          label: 'Calculator',
+          labelBackgroundColor: Colors.white.withOpacity(0.75),
+          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+          child: LiquidGlassContainer(
+            width: childSize,
+            height: childSize,
+            borderRadius: childRadius,
+            child: const Center(
+              child: Icon(Icons.calculate, color: Colors.black),
+            ),
+          ),
+          onTap: () {
+            setState(() {
+              _activated_tool = _activated_tool == "calculator" ? "none" : "calculator";
+            });
+            _scheduleGlassUpdate(context);
+          },
+        ),
+      ],
     );
   }
 }
