@@ -11,6 +11,7 @@ import 'package:TopsOJ/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/problem_page/problem_page.dart';
 import 'package:TopsOJ/login_page.dart';
+import 'package:TopsOJ/basic/ui_basic.dart';
 import 'package:TopsOJ/template.dart';
 
 class Problems extends ConsumerStatefulWidget {
@@ -32,6 +33,9 @@ class _ProblemsState extends ConsumerState<Problems> {
     {'id': "03_amc12A_p01", 'name': '2003 AMC 12A problem 1'},
     {'id': "04_amc12A_p02", 'name': '2004 AMC 12A problem 2'},
   ]; //changed by the _getProblems function
+
+  // 题目列表背景，给筛选面板和翻页胶囊做液态玻璃折射。
+  final GlobalKey _problemsListKey = GlobalKey();
   
 
   Future<void> _getProblems() async {
@@ -196,53 +200,48 @@ class _ProblemsState extends ConsumerState<Problems> {
     );
   }
 
-  Widget _buildList() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (_page > 1)
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _page = _page - 1;
-                      _getProblems();
-                    });
-                  },
-                child: const Icon(Icons.arrow_back),
+  /// 翻页按钮跟 ranking page 的胶囊一致：左右 IconButton，中间页码。
+  Widget _buildPageSwitcher() {
+    final int totalPages = (_problems_cnt / 10).ceil();
+    return LiquidGlassContainer(
+      height: 52,
+      borderRadius: 26,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            if (_page > 1)
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _page = _page - 1;
+                    _getProblems();
+                  });
+                },
               )
-              else
-                const SizedBox(width: 60),
-              Text(
-                'Page $_page/${(_problems_cnt / 10).ceil()}',
-                style: const TextStyle(fontSize: 16),
-              ),
-              if (_page * 10 < _problems_cnt)
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _page = _page + 1;
-                      _getProblems();
-                    });
-                  },
-                  child: const Icon(Icons.arrow_forward),
-                )
-              else
-                const SizedBox(width: 60),
-            ],
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: _render(),
-              ),
+            else
+              const SizedBox(width: 48),
+            const Spacer(),
+            Text(
+              'Page $_page/$totalPages',
+              style: const TextStyle(fontSize: 16),
             ),
-          ),
-        ],
+            const Spacer(),
+            if (_page * 10 < _problems_cnt)
+              IconButton(
+                icon: const Icon(Icons.arrow_forward),
+                onPressed: () {
+                  setState(() {
+                    _page = _page + 1;
+                    _getProblems();
+                  });
+                },
+              )
+            else
+              const SizedBox(width: 48),
+          ],
+        ),
       ),
     );
   }
@@ -268,9 +267,64 @@ class _ProblemsState extends ConsumerState<Problems> {
         );
       },
     );
-    return ScreenSplitter(
-      childA: _buildList(), 
-      childB: _buildFilter(),
+
+    final double topSafe = MediaQuery.paddingOf(context).top;
+    final double safeBottom = MediaQuery.paddingOf(context).bottom;
+    final double bottomInset = safeBottom < 12 ? 12 : safeBottom;
+    // MainPage 底部导航：top 4 + 高度 64 + 底部安全区，再留一点缝。
+    final double aboveNav = 4 + bottomInset + 8;
+    // 悬浮顶栏占 status bar 以下 60（见 main.dart 的 liquid app bar）。
+    const double capsuleHeight = 52;
+    final double capsuleTop = topSafe + 8;
+    final double screenHeight = MediaQuery.sizeOf(context).height;
+
+    return LiquidGlassScope(
+      repaintBoundaryKey: _problemsListKey,
+      child: Builder(
+        builder: (glassContext) {
+          return Stack(
+            children: [
+              NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is ScrollUpdateNotification) {
+                    // 内层 scope 管筛选/翻页玻璃，外层 scope 管主界面顶栏和底栏。
+                    LiquidGlassScope.notifyUpdate(glassContext);
+                    LiquidGlassScope.notifyUpdate(context);
+                  }
+                  return false;
+                },
+                child: RepaintBoundary(
+                  key: _problemsListKey,
+                  child: ListView(
+                    // 列表本身铺满屏幕；padding 只是让首尾能滚出顶栏、翻页胶囊和底部筛选。
+                    padding: EdgeInsets.only(
+                      top: capsuleTop + capsuleHeight + 12,
+                      bottom: aboveNav + screenHeight * 0.3 + 48,
+                    ),
+                    children: _render(),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: capsuleTop,
+                left: 16,
+                right: 16,
+                child: _buildPageSwitcher(),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: aboveNav,
+                child: StretchableLiquidGlass(
+                  defaultSplit: 0.3,
+                  maxSplit: 0.5,
+                  child: _buildFilter(),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

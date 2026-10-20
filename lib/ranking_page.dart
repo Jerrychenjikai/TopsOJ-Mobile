@@ -347,7 +347,7 @@ class _RankingState extends ConsumerState<RankingPage> {
 
               // 2. 顶层：悬浮在 App Bar 下方的分类选择胶囊
               Positioned(
-                top: topSafeArea, // 避开状态栏 height + App Bar 60px
+                top: topSafeArea + 8, // 避开状态栏 height + App Bar 60px
                 left: 16,
                 right: 16,
                 child: LiquidGlassContainer(

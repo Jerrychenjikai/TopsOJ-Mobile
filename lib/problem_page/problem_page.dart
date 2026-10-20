@@ -9,6 +9,7 @@ import 'package:TopsOJ/cached_problem_func.dart';
 import 'package:TopsOJ/basic_func.dart';
 import 'package:TopsOJ/problem_page/problem_render.dart';
 import 'package:TopsOJ/problem_page/problem_submit.dart';
+import 'package:TopsOJ/template.dart';
 import 'package:TopsOJ/basic/ui_basic.dart';
 
 /// 题目详情数据模型 (Data Class)
@@ -73,45 +74,22 @@ class ProblemPage extends StatefulWidget {
   State<ProblemPage> createState() => _ProblemPageState();
 }
 
-class _ProblemPageState extends State<ProblemPage>
-    with SingleTickerProviderStateMixin {
+class _ProblemPageState extends State<ProblemPage> {
   // 封装后的题目详情模型
   ProblemDetail? _problemDetail;
 
   String _activated_tool = "none";
   double? _current_calculator_value = 0;
 
-  // 计算器高度占屏幕比例。点击 / 初次打开落到 0.4，拖动上限 0.5。
-  static const double _calculatorDefaultSplit = 0.4;
-  static const double _calculatorMaxSplit = 0.5;
-  static const Duration _calculatorAnimDuration = Duration(milliseconds: 300);
+  // 计算器面板的开合。高度拖拽在 StretchableLiquidGlass 里。
+  final StretchableLiquidGlassController _calculatorPanel =
+      StretchableLiquidGlassController();
 
-  late final AnimationController _calculatorController;
-  // 收到 0 的动画结束时才真正关掉，避免打开动画从 0 起步时被立刻关闭。
-  bool _closeCalculatorAtZero = false;
   BuildContext? _glassContext;
 
   // 用于捕获题目正文背景的 Key，供液态玻璃折射
   final GlobalKey _backgroundKey = GlobalKey();
   String? _glassSyncedProblemId;
-
-  @override
-  void initState() {
-    super.initState();
-    _calculatorController = AnimationController(
-      vsync: this,
-      duration: _calculatorAnimDuration,
-      value: 0.0,
-    )..addStatusListener(_handleCalculatorStatus);
-  }
-
-  @override
-  void dispose() {
-    _calculatorController
-      ..removeStatusListener(_handleCalculatorStatus)
-      ..dispose();
-    super.dispose();
-  }
 
   void _scheduleGlassUpdate(BuildContext glassContext) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -120,77 +98,27 @@ class _ProblemPageState extends State<ProblemPage>
     });
   }
 
-  void _handleCalculatorStatus(AnimationStatus status) {
+  void _handleCalculatorCollapsed() {
     if (!mounted) return;
-    final bool settled = status == AnimationStatus.completed ||
-        status == AnimationStatus.dismissed;
-    if (!settled) return;
-
-    if (_closeCalculatorAtZero && _calculatorController.value <= 0.001) {
-      _closeCalculatorAtZero = false;
-      if (_activated_tool == "calculator") {
-        setState(() {
-          _activated_tool = "none";
-        });
-      }
-    }
-
-    final glassContext = _glassContext;
-    if (glassContext != null) {
-      _scheduleGlassUpdate(glassContext);
-    }
-  }
-
-  void _animateCalculatorSplitTo(double target) {
-    _calculatorController.animateTo(
-      target,
-      duration: _calculatorAnimDuration,
-      curve: Curves.easeOut,
-    );
+    if (_activated_tool != "calculator") return;
+    setState(() {
+      _activated_tool = "none";
+    });
   }
 
   void _openCalculator() {
-    _closeCalculatorAtZero = false;
     if (_activated_tool != "calculator") {
-      _calculatorController.value = 0.0;
       setState(() {
         _activated_tool = "calculator";
       });
+      return;
     }
-    _animateCalculatorSplitTo(_calculatorDefaultSplit);
+    _calculatorPanel.open();
   }
 
   void _animateCalculatorClose() {
     if (_activated_tool != "calculator") return;
-    _closeCalculatorAtZero = true;
-    if (_calculatorController.value <= 0.001) {
-      _calculatorController.value = 0.0;
-      _handleCalculatorStatus(AnimationStatus.dismissed);
-      return;
-    }
-    _animateCalculatorSplitTo(0.0);
-  }
-
-  /// 拖动跟手。高度落到 0（不足 1px 视为 0）时关闭计算器。
-  void _setCalculatorSplit(double split, double screenHeight) {
-    final double next = split.clamp(0.0, _calculatorMaxSplit).toDouble();
-    final bool collapsed =
-        next <= 0.0 || (screenHeight > 0 && next * screenHeight < 1);
-    if (collapsed) {
-      _closeCalculatorAtZero = false;
-      _calculatorController.value = 0.0;
-      if (_activated_tool != "none") {
-        setState(() {
-          _activated_tool = "none";
-        });
-      }
-      final glassContext = _glassContext;
-      if (glassContext != null) {
-        _scheduleGlassUpdate(glassContext);
-      }
-      return;
-    }
-    _calculatorController.value = next;
+    _calculatorPanel.close();
   }
 
   /// flutter_simple_calculator 的按钮色走 CalculatorThemeData：
@@ -473,98 +401,8 @@ class _ProblemPageState extends State<ProblemPage>
     );
   }
 
-  /// 计算器上方的把手。上拉增高、下拉降低（0 ~ 0.5 屏），到 0 关闭；点击动画到 0.4 屏。
-  Widget _buildCalculatorHandle(double screenHeight) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onVerticalDragStart: (_) {
-        _closeCalculatorAtZero = false;
-        _calculatorController.stop();
-      },
-      onVerticalDragUpdate: (details) {
-        if (screenHeight <= 0) return;
-        final double next =
-            _calculatorController.value - (details.delta.dy / screenHeight);
-        _setCalculatorSplit(next, screenHeight);
-      },
-      onVerticalDragEnd: (_) {
-        if (_activated_tool != "calculator") return;
-        final glassContext = _glassContext;
-        if (glassContext != null) {
-          _scheduleGlassUpdate(glassContext);
-        }
-      },
-      onTap: () {
-        _closeCalculatorAtZero = false;
-        _animateCalculatorSplitTo(_calculatorDefaultSplit);
-      },
-      child: const SizedBox(
-        width: double.infinity,
-        height: 32,
-        child: Center(
-          child: Icon(Icons.drag_handle, color: Colors.black),
-        ),
-      ),
-    );
-  }
-
-  /// 把手固定在上方，计算器高度跟控制器走。打开时从 0 动画到 0.4 屏。
-  Widget _buildCalculatorSheet(BuildContext context, double screenHeight) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildCalculatorHandle(screenHeight),
-        AnimatedBuilder(
-          animation: _calculatorController,
-          builder: (context, _) {
-            final double calculatorHeight =
-                screenHeight * _calculatorController.value;
-            if (calculatorHeight <= 0) return const SizedBox.shrink();
-
-            // 太矮时按固定高度布局再裁切，避免展开动画把 26px 按键挤出溢出。
-            // 高于这个高度后，计算器按真实高度重排。
-            final double layoutFloor = min(200.0, screenHeight * _calculatorMaxSplit);
-            final double layoutHeight = max(calculatorHeight, layoutFloor);
-
-            return SizedBox(
-              width: double.infinity,
-              height: calculatorHeight,
-              child: ClipRect(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double width = constraints.maxWidth.isFinite
-                        ? constraints.maxWidth
-                        : MediaQuery.sizeOf(context).width;
-                    return OverflowBox(
-                      alignment: Alignment.topCenter,
-                      minWidth: width,
-                      maxWidth: width,
-                      minHeight: layoutHeight,
-                      maxHeight: layoutHeight,
-                      child: SimpleCalculator(
-                        value: _current_calculator_value ?? 0,
-                        hideExpression: false,
-                        hideSurroundingBorder: true,
-                        autofocus: true,
-                        theme: _translucentCalculatorTheme(context),
-                        onChanged: (key, value, expression) {
-                          setState(() {
-                            _current_calculator_value = value;
-                          });
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  /// 底部悬浮玻璃：可选计算器 + 提交栏，Previous / Next 浮在它上方
+  /// 底部悬浮玻璃：Previous / Next、可拉伸计算器、提交栏，各自一块玻璃。
+  /// 计算器在 prev/next 和 problem submit 之间。
   Widget _buildLiquidBottomBar(
     BuildContext context, {
     required bool canPrev,
@@ -575,7 +413,6 @@ class _ProblemPageState extends State<ProblemPage>
     final mq = MediaQuery.of(context);
     final double bottomInset = max(max(mq.padding.bottom, mq.viewPadding.bottom), 12);
     final bool showCalculator = _activated_tool == "calculator";
-    final double screenHeight = mq.size.height;
     const double panelRadius = 32;
 
     return Container(
@@ -625,29 +462,45 @@ class _ProblemPageState extends State<ProblemPage>
             ),
             const SizedBox(height: 10),
           ],
+          if (showCalculator) ...[
+            StretchableLiquidGlass(
+              controller: _calculatorPanel,
+              defaultSplit: 0.4,
+              maxSplit: 0.5,
+              borderRadius: panelRadius,
+              minLayoutExtent: 200,
+              onCollapsed: _handleCalculatorCollapsed,
+              child: SimpleCalculator(
+                value: _current_calculator_value ?? 0,
+                hideExpression: false,
+                hideSurroundingBorder: true,
+                autofocus: true,
+                theme: _translucentCalculatorTheme(context),
+                onChanged: (key, value, expression) {
+                  setState(() {
+                    _current_calculator_value = value;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           LiquidGlassContainer(
             borderRadius: panelRadius,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(panelRadius),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (showCalculator)
-                    _buildCalculatorSheet(context, screenHeight),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                    child: problemSubmit(
-                      widget.problemId,
-                      onSubmitResult: (passed) {
-                        if (passed) {
-                          setState(() {
-                            _problemDetail = _problemDetail?.copyWith(isSolved: true);
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: problemSubmit(
+                  widget.problemId,
+                  onSubmitResult: (passed) {
+                    if (passed) {
+                      setState(() {
+                        _problemDetail = _problemDetail?.copyWith(isSolved: true);
+                      });
+                    }
+                  },
+                ),
               ),
             ),
           ),
