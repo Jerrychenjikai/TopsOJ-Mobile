@@ -12,9 +12,14 @@ class SnapshotConfig {
   final double blurSigma;
   final double darkenOpacity;
 
+  /// 对比度降低比例，范围 0.0～1.0。
+  /// 0.0 表示保持原对比度，0.15 表示降低约 15%。
+  final double contrastReduction;
+
   const SnapshotConfig({
     this.blurSigma = 4.0,
     this.darkenOpacity = 0.00,
+    this.contrastReduction =0.3,
   });
 
   @override
@@ -23,10 +28,14 @@ class SnapshotConfig {
       other is SnapshotConfig &&
           runtimeType == other.runtimeType &&
           blurSigma == other.blurSigma &&
-          darkenOpacity == other.darkenOpacity;
+          darkenOpacity == other.darkenOpacity &&
+          contrastReduction == other.contrastReduction;
 
   @override
-  int get hashCode => blurSigma.hashCode ^ darkenOpacity.hashCode;
+  int get hashCode =>
+      blurSigma.hashCode ^
+      darkenOpacity.hashCode ^
+      contrastReduction.hashCode;
 }
 
 // ==========================================
@@ -48,14 +57,18 @@ Future<void> preloadLiquidGlassShader({
 }
 
 // ==========================================
-// 对快照图片进行模糊 / 亮度处理
+// 背景快照不透明化 + 模糊 / 颜色处理
 // ==========================================
-Future<ui.Image> processSnapshotImage(
-  ui.Image inputImage, {
-  SnapshotConfig config = const SnapshotConfig(),
-}) async {
-  final recorder = ui.PictureRecorder();
+Color _asOpaqueColor(Color color) =>
+    Color.fromARGB(255, color.red, color.green, color.blue);
 
+/// 将输入图片先合成到不透明底色上，确保输出图片每个像素的 Alpha 都为 255。
+Future<ui.Image> _makeOpaqueImage(
+  ui.Image inputImage, {
+  required Color backgroundColor,
+}) async {
+  final opaqueBackgroundColor = _asOpaqueColor(backgroundColor);
+  final recorder = ui.PictureRecorder();
   final canvas = Canvas(
     recorder,
     Rect.fromLTWH(
@@ -66,29 +79,82 @@ Future<ui.Image> processSnapshotImage(
     ),
   );
 
-  final paint = Paint()
-    ..imageFilter = ui.ImageFilter.blur(
-      sigmaX: config.blurSigma,
-      sigmaY: config.blurSigma,
-      tileMode: TileMode.clamp,
-    )
-    ..colorFilter = ColorFilter.mode(
-      Colors.black.withOpacity(config.darkenOpacity),
-      BlendMode.lighten,
-    );
-
+  // 先绘制不透明底色，再将原图叠加到底色上。
+  canvas.drawColor(opaqueBackgroundColor, BlendMode.src);
   canvas.drawImage(
     inputImage,
     Offset.zero,
-    paint,
+    Paint()..blendMode = BlendMode.srcOver,
   );
 
   final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(inputImage.width, inputImage.height);
+  } finally {
+    picture.dispose();
+  }
+}
 
-  return await picture.toImage(
-    inputImage.width,
-    inputImage.height,
+/// 在不透明底色上合成快照，然后统一执行模糊、暗化和对比度处理。
+/// backgroundColor 通常由调用组件传入；直接调用时默认使用白色。
+Future<ui.Image> processSnapshotImage(
+  ui.Image inputImage, {
+  SnapshotConfig config = const SnapshotConfig(),
+  Color backgroundColor = const Color(0xFFFFFFFF),
+}) async {
+  final opaqueBackgroundColor = _asOpaqueColor(backgroundColor);
+  final opaqueInput = await _makeOpaqueImage(
+    inputImage,
+    backgroundColor: opaqueBackgroundColor,
   );
+
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(
+    recorder,
+    Rect.fromLTWH(
+      0,
+      0,
+      inputImage.width.toDouble(),
+      inputImage.height.toDouble(),
+    ),
+  );
+
+  // 作为最终保险：即使模糊处理在边缘产生半透明像素，最终图像也会保持不透明。
+  canvas.drawColor(opaqueBackgroundColor, BlendMode.src);
+
+  // 将对比度降低和暗化合并进同一个矩阵。
+  // 先围绕 255 降低对比度，再按 darkenOpacity 与黑色混合。Alpha 保持不变。
+  final reduction = config.contrastReduction.clamp(0.0, 1.0).toDouble();
+  final darken = config.darkenOpacity.clamp(0.0, 1.0).toDouble();
+  final contrast = 1.0 - reduction;
+  final darkenScale = 1.0 - darken;
+  final scale = contrast * darkenScale;
+  final offset = 255 * reduction * darkenScale;
+  final colorFilter = ColorFilter.matrix(<double>[
+    scale, 0, 0, 0, offset,
+    0, scale, 0, 0, offset,
+    0, 0, scale, 0, offset,
+    0, 0, 0, 1, 0,
+  ]);
+
+  final paint = Paint()..colorFilter = colorFilter;
+  if (config.blurSigma > 0) {
+    paint.imageFilter = ui.ImageFilter.blur(
+      sigmaX: config.blurSigma,
+      sigmaY: config.blurSigma,
+      tileMode: TileMode.clamp,
+    );
+  }
+
+  canvas.drawImage(opaqueInput, Offset.zero, paint);
+
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(inputImage.width, inputImage.height);
+  } finally {
+    picture.dispose();
+    opaqueInput.dispose();
+  }
 }
 
 // ==========================================
@@ -127,6 +193,10 @@ class LiquidGlassScope extends StatefulWidget {
   /// 是否对生成的背景纹理进行模糊。
   final bool blur;
 
+  /// 用于合成透明快照区域的背景色。
+  /// 不传时使用 Theme.of(context).scaffoldBackgroundColor。
+  final Color? backgroundColor;
+
   /// 背景纹理后处理配置。
   final SnapshotConfig snapshotConfig;
 
@@ -136,6 +206,7 @@ class LiquidGlassScope extends StatefulWidget {
     this.repaintBoundaryKey,
     required this.child,
     this.blur = true,
+    this.backgroundColor,
     this.snapshotConfig = const SnapshotConfig(),
   });
 
@@ -169,6 +240,9 @@ class _LiquidGlassScopeState extends State<LiquidGlassScope> {
 
   /// 最近一次看到的屏幕尺寸。
   Size _lastScreenSize = Size.zero;
+
+  /// 上一次使用的背景合成色，用于监听主题背景色变化。
+  Color? _lastEffectiveBackgroundColor;
 
   /// 是否已经收到新的纹理更新请求。
   bool _textureDirty = false;
@@ -224,6 +298,21 @@ class _LiquidGlassScopeState extends State<LiquidGlassScope> {
   }
 
   // ------------------------------------------
+  // 主题背景色变化时更新快照
+  // ------------------------------------------
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final effectiveBackgroundColor =
+        widget.backgroundColor ?? Theme.of(context).scaffoldBackgroundColor;
+    if (_lastEffectiveBackgroundColor != effectiveBackgroundColor) {
+      _lastEffectiveBackgroundColor = effectiveBackgroundColor;
+      _requestTextureUpdate();
+    }
+  }
+
+  // ------------------------------------------
   // 初始化
   // ------------------------------------------
 
@@ -274,6 +363,7 @@ class _LiquidGlassScopeState extends State<LiquidGlassScope> {
 
     final snapshotConfigChanged =
         oldWidget.blur != widget.blur ||
+        oldWidget.backgroundColor != widget.backgroundColor ||
         oldWidget.snapshotConfig != widget.snapshotConfig;
 
     if (
@@ -384,6 +474,8 @@ class _LiquidGlassScopeState extends State<LiquidGlassScope> {
     final painter = widget.painter;
     final blur = widget.blur;
     final snapshotConfig = widget.snapshotConfig;
+    final effectiveBackgroundColor =
+        widget.backgroundColor ?? Theme.of(context).scaffoldBackgroundColor;
 
     bool success = false;
     bool boundaryNotReady = false;
@@ -391,6 +483,7 @@ class _LiquidGlassScopeState extends State<LiquidGlassScope> {
     try {
       // ==========================================
       // 模式 A：直接从 CustomPainter 生成纹理
+      // 模式 B：没有 painter 时才从 RenderRepaintBoundary 获取纹理
       // ==========================================
       if (painter != null) {
         final recorder = ui.PictureRecorder();
@@ -405,95 +498,74 @@ class _LiquidGlassScopeState extends State<LiquidGlassScope> {
           ),
         );
 
-        painter.paint(
-          canvas,
-          size,
-        );
+        painter.paint(canvas, size);
 
         picture = recorder.endRecording();
-
         rawImage = await picture.toImage(
-          max(
-            1,
-            size.width.round(),
-          ),
-          max(
-            1,
-            size.height.round(),
-          ),
+          max(1, size.width.round()),
+          max(1, size.height.round()),
         );
 
         picture.dispose();
         picture = null;
-      }
+      } else if (widget.repaintBoundaryKey != null) {
+        final boundary =
+            widget.repaintBoundaryKey!.currentContext
+                ?.findRenderObject() as RenderRepaintBoundary?;
 
-      // ==========================================
-      // 模式 B：从 RenderRepaintBoundary 生成纹理
-      // ==========================================
-        if (widget.repaintBoundaryKey != null) {
-          final boundary =
-              widget.repaintBoundaryKey!.currentContext
-                  ?.findRenderObject()
-              as RenderRepaintBoundary?;
+        if (boundary == null ||
+            !boundary.attached ||
+            !boundary.hasSize) {
+          // 边界根本还不存在 / 未 attach / 没尺寸。
+          boundaryNotReady = true;
+        } else if (boundary.layer == null) {
+          // toImage 内部会访问 layer；layer 为 null 时不能安全捕获。
+          // 不使用 debugNeedsPaint，避免 release/profile 下的异常。
+          boundaryNotReady = true;
+        } else {
+          final bgSize = boundary.size;
+          final dpr = MediaQuery.of(context).devicePixelRatio;
+          final targetRatio = min(dpr, 1.2);
 
-          if (boundary == null ||
-              !boundary.attached ||
-              !boundary.hasSize) {
-            // 边界根本还不存在 / 未 attach / 没尺寸。
-            boundaryNotReady = true;
-          } else if (boundary.layer == null) {
-            // 【关键】toImage 内部会执行 `layer!`。
-            // layer 为 null 时就会抛
-            // "Null check operator used on a null value"。
-            //
-            // 注意：绝对不要用 boundary.debugNeedsPaint！
-            // 那个 getter 只在 debug 下有效，
-            // release / profile 下会抛 LateInitializationError。
-            boundaryNotReady = true;
-          } else {
-            final bgSize = boundary.size;
+          try {
+            rawImage = await boundary.toImage(
+              pixelRatio: targetRatio,
+            );
 
-            // 保留旧版本限制：最多 1.2 倍像素比。
-            final dpr =
-                MediaQuery.of(context).devicePixelRatio;
-
-            final targetRatio = min(dpr, 1.2);
-
-            try {
-              rawImage = await boundary.toImage(
-                pixelRatio: targetRatio,
-              );
-
-              // 真实 Boundary 的尺寸优先作为背景尺寸。
-              if (bgSize != _lastBgSize) {
-                _lastBgSize = bgSize;
-              }
-            } catch (e) {
-              // layer 可能在 await 期间被销毁（边界被移除等）。
-              // 静默处理，别刷日志。
-              boundaryNotReady = true;
-              rawImage = null;
+            // 真实 Boundary 的尺寸优先作为背景尺寸。
+            if (bgSize != _lastBgSize) {
+              _lastBgSize = bgSize;
             }
+          } catch (e) {
+            // layer 可能在 await 期间被销毁（例如边界被移除）。
+            boundaryNotReady = true;
+            rawImage = null;
           }
         }
+      }
 
       // ==========================================
       // 对生成的图片进行后处理
       // ==========================================
 
       if (rawImage != null) {
-        finalImage = rawImage;
+        // blur=false 只关闭模糊，不影响背景不透明化、暗化或对比度处理。
+        final processingConfig = blur
+            ? snapshotConfig
+            : SnapshotConfig(
+                blurSigma: 0,
+                darkenOpacity: snapshotConfig.darkenOpacity,
+                contrastReduction: snapshotConfig.contrastReduction,
+              );
 
-        if (blur) {
-          finalImage =
-              await processSnapshotImage(
-            rawImage,
-            config: snapshotConfig,
-          );
+        finalImage = await processSnapshotImage(
+          rawImage,
+          config: processingConfig,
+          backgroundColor: effectiveBackgroundColor,
+        );
 
-          rawImage.dispose();
-          rawImage = null;
-        }
+        rawImage.dispose();
+        rawImage = null;
 
         // 组件已经销毁。
         if (!mounted) {
@@ -1120,9 +1192,16 @@ Future<T?> showLiquidGlassPopup<T>({
   double edgeMargin = 30.0,
   double refractionIntensity = 4.5,
   Color barrierColor = Colors.black12,
+  /// 用于合成透明快照区域的背景色；不传时使用主题的 scaffoldBackgroundColor。
+  Color? backgroundColor,
   double mobileWidthThreshold = 600.0,
   double mobileHeightThreshold = 1000.0,
+  /// 快照对比度降低比例，范围 0.0～1.0；设为 0.0 可关闭。
+  double snapshotContrastReduction = 0.3,
 }) async {
+  final effectiveBackgroundColor =
+      backgroundColor ?? Theme.of(context).scaffoldBackgroundColor;
+
   // ------------------------------------------
   // 确保 Shader 已加载
   // ------------------------------------------
@@ -1149,11 +1228,12 @@ Future<T?> showLiquidGlassPopup<T>({
           ? null
           : await processSnapshotImage(
               origImage,
-              config:
-                  const SnapshotConfig(
+              config: SnapshotConfig(
                 blurSigma: 4.0,
                 darkenOpacity: 0.00,
+                contrastReduction: snapshotContrastReduction,
               ),
+              backgroundColor: effectiveBackgroundColor,
             );
 
   // 原图不再需要。
