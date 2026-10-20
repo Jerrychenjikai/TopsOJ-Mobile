@@ -255,6 +255,7 @@ class _AnnualReportPageState extends State<AnnualReportPage> with TickerProvider
 
               return LiquidGlassScope(
                 painter: backgroundPainter,
+                snapshotConfig: SnapshotConfig(contrastReduction: 0.0),
                 child: Stack(
                   children: [
                     Positioned.fill(
@@ -338,6 +339,7 @@ class InactivePage extends StatelessWidget {
     return Scaffold(
       body: LiquidGlassScope(
         painter: backgroundPainter,
+        snapshotConfig: SnapshotConfig(contrastReduction: 0.0),
         child: Stack(
           children: [
             const Positioned.fill(
