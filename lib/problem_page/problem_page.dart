@@ -85,8 +85,6 @@ class _ProblemPageState extends State<ProblemPage> {
   final StretchableLiquidGlassController _calculatorPanel =
       StretchableLiquidGlassController();
 
-  BuildContext? _glassContext;
-
   // 用于捕获题目正文背景的 Key，供液态玻璃折射
   final GlobalKey _backgroundKey = GlobalKey();
   String? _glassSyncedProblemId;
@@ -252,7 +250,6 @@ class _ProblemPageState extends State<ProblemPage> {
             repaintBoundaryKey: _backgroundKey,
             child: Builder(
               builder: (glassContext) {
-                _glassContext = glassContext;
                 if (ready && _glassSyncedProblemId != widget.problemId) {
                   _glassSyncedProblemId = widget.problemId;
                   _scheduleGlassUpdate(glassContext);
@@ -262,7 +259,6 @@ class _ProblemPageState extends State<ProblemPage> {
                   extendBody: true, // 让正文延伸到悬浮底栏下方
                   extendBodyBehindAppBar: true, // 让正文延伸到悬浮顶栏后方
                   appBar: _buildLiquidAppBar(glassContext, problemName, isSolved),
-                  floatingActionButton: _buildLiquidSpeedDial(glassContext),
                   body: RepaintBoundary(
                     key: _backgroundKey,
                     // 列表上下仍然铺满全屏；左右只加 margin，不打断纵向滚动。
@@ -426,42 +422,43 @@ class _ProblemPageState extends State<ProblemPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (canPrev || canNxt) ...[
-            Row(
-              children: [
-                if (canPrev)
-                  Expanded(
-                    child: _buildGlassNavButton(
-                      icon: Icons.arrow_back,
-                      label: "Previous",
-                      onPressed: () {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => ProblemPage(problemId: prev),
-                          ),
-                        );
-                      },
-                    ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (canPrev)
+                Expanded(
+                  child: _buildGlassNavButton(
+                    icon: Icons.arrow_back,
+                    label: "Previous",
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => ProblemPage(problemId: prev),
+                        ),
+                      );
+                    },
                   ),
-                if (canPrev && canNxt) const SizedBox(width: 12),
-                if (canNxt)
-                  Expanded(
-                    child: _buildGlassNavButton(
-                      icon: Icons.arrow_forward,
-                      label: "Next",
-                      onPressed: () {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => ProblemPage(problemId: nxt),
-                          ),
-                        );
-                      },
-                    ),
+                ),
+              if (canPrev && canNxt) const SizedBox(width: 12),
+              if (canNxt)
+                Expanded(
+                  child: _buildGlassNavButton(
+                    icon: Icons.arrow_forward,
+                    label: "Next",
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => ProblemPage(problemId: nxt),
+                        ),
+                      );
+                    },
                   ),
-              ],
-            ),
-            const SizedBox(height: 10),
-          ],
+                ),
+              _buildLiquidSpeedDial(context),
+            ],
+          ),
+          const SizedBox(height: 10),
+
           if (showCalculator) ...[
             StretchableLiquidGlass(
               controller: _calculatorPanel,

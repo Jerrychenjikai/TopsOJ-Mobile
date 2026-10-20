@@ -27,6 +27,7 @@ class _ProblemsState extends ConsumerState<Problems> {
   int _page = 1;
   int _problems_cnt = 3;
   int _solved = 1; //0 - only fetch unsolved problems, 1 - no restrictions, 2 - only solved problems
+  BuildContext? _glassContext;
 
   List<dynamic> _problem_ids = [
     {'id': "02_amc10A_p01", 'name': '2002 AMC 10A problem 1'},
@@ -64,6 +65,8 @@ class _ProblemsState extends ConsumerState<Problems> {
         _problem_ids = jsonData['data']['problems'];
         _problems_cnt = jsonData['data']['length'][0]['cnt'];
       });
+      LiquidGlassScope.notifyUpdate(context);
+      if(_glassContext != null) LiquidGlassScope.notifyUpdate(_glassContext!);
       return;
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -282,6 +285,7 @@ class _ProblemsState extends ConsumerState<Problems> {
       repaintBoundaryKey: _problemsListKey,
       child: Builder(
         builder: (glassContext) {
+          _glassContext = glassContext;
           return Stack(
             children: [
               NotificationListener<ScrollNotification>(
