@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:TopsOJ/basic_func.dart';
-import 'package:TopsOJ/index_providers.dart';
-import 'basic/ui_basic.dart';
+import 'package:TopsOJ/main_page/index_providers.dart';
+import 'package:TopsOJ/basic/ui_basic.dart';
 
 class PvpLeaderboardWidget extends StatelessWidget {
   const PvpLeaderboardWidget({super.key});

@@ -7,12 +7,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:TopsOJ/index_providers.dart';
+import 'package:TopsOJ/main_page/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
-import 'package:TopsOJ/problem_page/problem_page.dart';
 import 'package:TopsOJ/login_page.dart';
 import 'package:TopsOJ/basic/ui_basic.dart';
 import 'package:TopsOJ/template.dart';
+import 'package:TopsOJ/main_page/main_split_scope.dart';
+import 'package:TopsOJ/main_page/liquid_glass_metrics_hook.dart';
 
 class Problems extends ConsumerStatefulWidget {
   const Problems({super.key});
@@ -88,11 +89,9 @@ class _ProblemsState extends ConsumerState<Problems> {
       );
       return;
     }
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProblemPage(problemId: problemId),
-      ),
-    );
+    // 从主壳层点进题目：宽屏进右栏，窄屏由壳层整页盖住。
+    // 不在壳层里时（理论上不会发生）退回普通全屏 push。
+    MainSplitScope.openProblem(context, problemId);
   }
 
   List<Widget> _render() {
@@ -286,7 +285,8 @@ class _ProblemsState extends ConsumerState<Problems> {
       child: Builder(
         builder: (glassContext) {
           _glassContext = glassContext;
-          return Stack(
+          return LiquidGlassMetricsHook(
+            child: Stack(
             children: [
               NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
@@ -326,6 +326,7 @@ class _ProblemsState extends ConsumerState<Problems> {
                 ),
               ),
             ],
+            ),
           );
         },
       ),

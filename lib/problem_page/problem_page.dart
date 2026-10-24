@@ -11,6 +11,7 @@ import 'package:TopsOJ/problem_page/problem_render.dart';
 import 'package:TopsOJ/problem_page/problem_submit.dart';
 import 'package:TopsOJ/template.dart';
 import 'package:TopsOJ/basic/ui_basic.dart';
+import 'package:TopsOJ/main_page/liquid_glass_metrics_hook.dart';
 
 /// 题目详情数据模型 (Data Class)
 class ProblemDetail {
@@ -61,13 +62,29 @@ class ProblemDetail {
   }
 }
 
+/// 由自适应壳层托管题目页时传入。
+/// 宽屏：关的是右栏，前后题只换右栏。
+/// 窄屏：关的是盖在主界面上的整页题目。
+/// 为 null 时，本页是普通的全屏路由（例如从缓存题、年度报告等页面 push 进来）。
+class ProblemShellLink {
+  final VoidCallback onClose;
+  final ValueChanged<String> onOpenProblem;
+
+  const ProblemShellLink({
+    required this.onClose,
+    required this.onOpenProblem,
+  });
+}
+
 // 题目页面。只接受 problemId。内容渲染和提交栏分别来自 problem_render / problem_submit。
 class ProblemPage extends StatefulWidget {
   final String problemId;
+  final ProblemShellLink? shell;
 
   const ProblemPage({
     super.key,
     required this.problemId,
+    this.shell,
   });
 
   @override
@@ -94,6 +111,28 @@ class _ProblemPageState extends State<ProblemPage> {
       if (!glassContext.mounted) return;
       LiquidGlassScope.notifyUpdate(glassContext);
     });
+  }
+
+  void _leaveProblem() {
+    final shell = widget.shell;
+    if (shell != null) {
+      shell.onClose();
+      return;
+    }
+    Navigator.pop(context, true);
+  }
+
+  void _openSibling(String id) {
+    final shell = widget.shell;
+    if (shell != null) {
+      shell.onOpenProblem(id);
+      return;
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ProblemPage(problemId: id),
+      ),
+    );
   }
 
   void _handleCalculatorCollapsed() {
@@ -243,8 +282,8 @@ class _ProblemPageState extends State<ProblemPage> {
 
         return WillPopScope(
           onWillPop: () async {
-            Navigator.pop(context, true); // 手动传回是否需要刷新
-            return false; // 阻止默认返回行为（因为我们手动pop了）
+            _leaveProblem();
+            return false; // 阻止默认返回行为（因为我们手动处理了）
           },
           child: LiquidGlassScope(
             repaintBoundaryKey: _backgroundKey,
@@ -255,7 +294,8 @@ class _ProblemPageState extends State<ProblemPage> {
                   _scheduleGlassUpdate(glassContext);
                 }
 
-                return Scaffold(
+                return LiquidGlassMetricsHook(
+                  child: Scaffold(
                   extendBody: true, // 让正文延伸到悬浮底栏下方
                   extendBodyBehindAppBar: true, // 让正文延伸到悬浮顶栏后方
                   appBar: _buildLiquidAppBar(glassContext, problemName, isSolved),
@@ -290,6 +330,7 @@ class _ProblemPageState extends State<ProblemPage> {
                     canNxt: canNxt,
                     prev: prev,
                     nxt: nxt,
+                  ),
                   ),
                 );
               },
@@ -330,7 +371,7 @@ class _ProblemPageState extends State<ProblemPage> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.black),
-                  onPressed: () => Navigator.pop(context, true),
+                  onPressed: _leaveProblem,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
@@ -430,13 +471,7 @@ class _ProblemPageState extends State<ProblemPage> {
                   child: _buildGlassNavButton(
                     icon: Icons.arrow_back,
                     label: "Previous",
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => ProblemPage(problemId: prev),
-                        ),
-                      );
-                    },
+                    onPressed: () => _openSibling(prev),
                   ),
                 ),
               if (canPrev && canNxt) const SizedBox(width: 12),
@@ -445,13 +480,7 @@ class _ProblemPageState extends State<ProblemPage> {
                   child: _buildGlassNavButton(
                     icon: Icons.arrow_forward,
                     label: "Next",
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => ProblemPage(problemId: nxt),
-                        ),
-                      );
-                    },
+                    onPressed: () => _openSibling(nxt),
                   ),
                 ),
               _buildLiquidSpeedDial(context),

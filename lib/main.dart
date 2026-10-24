@@ -1,67 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 1. 引入 services 包
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:math';
 
-import 'package:TopsOJ/cached_problem_func.dart';
+import 'package:TopsOJ/basic/ui_basic.dart';
+import 'package:TopsOJ/main_page/liquid_glass_metrics_hook.dart';
+import 'package:TopsOJ/main_page/main_page.dart';
+import 'package:TopsOJ/main_page/main_split_scope.dart';
 import 'package:TopsOJ/problem_page/problem_page.dart';
-import 'package:TopsOJ/cached_problem_page.dart';
-import 'package:TopsOJ/basic_func.dart';
-import 'package:TopsOJ/ranking_page.dart';
-import 'package:TopsOJ/login_page.dart';
-import 'package:TopsOJ/2025_annual_wrap.dart' as wrap2025;
-import 'package:TopsOJ/bluetooth_compete.dart';
-import 'package:TopsOJ/problems_page.dart';
-import 'package:TopsOJ/home_page.dart';
-import 'package:TopsOJ/index_providers.dart';
-import 'basic/ui_basic.dart';
+
+/// 宽屏分栏阈值（逻辑像素）。
+///
+/// 左栏固定占 30%。1080 时左栏约 324，接近现在这套手机布局的下限。
+/// 因此：手机、iPad 竖屏、以及 iPad 把窗口拉窄到这个宽度以下，都是整页；
+/// iPad 横屏全窗口（大约 1080–1366）才是左 30% / 右 70%。
+/// 窗口变化时 Flutter 会更新 [MediaQuery]，壳层跟着重建，不需要额外的监听器。
+const double kMainSplitMinWidth = 1080;
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();  
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. 开启 Edge-to-Edge，并将系统状态栏与底部导航栏设为全透明
+  // 开启 Edge-to-Edge，并将系统状态栏与底部导航栏设为全透明
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Colors.transparent, // 关键：系统底部导航栏透明
+      systemNavigationBarColor: Colors.transparent,
       systemNavigationBarDividerColor: Colors.transparent,
       systemNavigationBarContrastEnforced: false,
     ),
   );
 
-  // 提前加载好 Shader
   await preloadLiquidGlassShader();
-  PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  await PackageInfo.fromPlatform();
   runApp(const ProviderScope(child: TopsOJ()));
 }
 
 class TopsOJ extends StatelessWidget {
   const TopsOJ({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "Tops Online Judge",
       routes: {
-        '/home': (context) => const MainPage(),
+        '/home': (context) => const AppShell(),
       },
       theme: ThemeData(
-        useMaterial3: true, 
+        useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(107, 38, 37, 1.0),
         ),
         appBarTheme: const AppBarTheme(
-          elevation: 0,                      
-          scrolledUnderElevation: 0,         
-          surfaceTintColor: Colors.transparent, 
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
           shadowColor: Colors.transparent,
         ),
         textTheme: Theme.of(context).textTheme.apply(
@@ -69,8 +62,8 @@ class TopsOJ extends StatelessWidget {
           displayColor: Colors.black,
         ),
         snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,          
-          shape: RoundedRectangleBorder(                
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
           elevation: 6,
@@ -79,451 +72,332 @@ class TopsOJ extends StatelessWidget {
           dismissDirection: DismissDirection.down,
         ),
       ),
-      home: const MainPage(),
+      home: const AppShell(),
     );
   }
 }
 
-// 主页面
-class MainPage extends ConsumerStatefulWidget {
-  const MainPage({super.key});
+/// 自适应壳层。
+///
+/// - 窄屏：和原来一样，主界面整页；从主界面或题目列表点开的题目整页盖上来。
+/// - 宽屏：主界面在左 30%，右 70% 空着，直到从主界面点开题目。
+/// - 年度报告、对战、缓存题，以及「不是从主界面进去」的题目，仍是 Navigator.push 的全屏页。
+/// - 窗口变窄：右栏空着就回到主界面；右栏有题就把那道题变成整页。
+///   窗口再变宽：恢复分栏，题还在右栏。
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
 
   @override
-  _MainPageState createState() => _MainPageState();
+  State<AppShell> createState() => _AppShellState();
 }
 
-class _MainPageState extends ConsumerState<MainPage> {
-  String _response = '';
-  Map<String, dynamic> _userinfo = {};
-  List<Widget> _weeklylb_render = [];
-  List<Widget> _precommend_render = [];
+class _AppShellState extends State<AppShell> {
+  final GlobalKey<_ProblemSlideState> _slideKey = GlobalKey<_ProblemSlideState>();
 
-  // 用于捕获主界面背景内容的 Key
-  final GlobalKey _backgroundKey = GlobalKey();
+  String? _paneProblemId;
+  bool _animateEntrance = false;
+  bool _animatingProblem = false;
+  bool _closing = false;
 
-  @override
-  void initState() {
-    super.initState();
+  bool _isWide(BuildContext context) {
+    return MediaQuery.sizeOf(context).width >= kMainSplitMinWidth;
   }
 
-  Future<void> _makeRequest() async {
-    if((await checkLogin()) == null){
-      final success = await popLogin(context);
-      if (success != true) {
-        setState(() {_response = "Not Logged In";});
-        _precommend_render = [];
-        _userinfo = {};
-        _weeklylb_render = [];
-        return;
-      }
-    }
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String apiKey = prefs.getString('apiKey') ?? "";
-    final result = await checkApiKeyValid(apiKey);
-    final statusCode = result['statusCode'];
-
-    final String? username = result['username'];
-    List<dynamic> weeklylb = await fetchWeeklylb();
-    List<dynamic> precommend = await fetchRecommendedProblems();
+  void _openProblem(String id) {
+    if (_closing || id.isEmpty || id == _paneProblemId) return;
+    final wide = _isWide(context);
     setState(() {
-      _weeklylb_render = [];
-      for (dynamic lb in weeklylb) {
-        _weeklylb_render.add(
-          ListTile(
-            title: Text(lb['username']),
-            trailing: Text(
-              "${lb['total_points']} Points",
-              style: const TextStyle(fontSize: 15),
-            ),
-            leading: Text("${lb['rank']}"),
-          ),
-        );
-      }
-      if (precommend.isNotEmpty) {
-        _precommend_render = [];
-        for (dynamic pr in precommend) {
-          if (_precommend_render.length > 4) {
-            break;
-          }
-          _precommend_render.add(
-            ListTile(
-              title: Text(pr['name']),
-              subtitle: Text(pr['pid']),
-              leading: const Icon(Icons.book),
-              onTap: () {
-                _gotoProblem(pr['pid']);
-              },
-            ),
-          );
-        }
-      }
-      if (statusCode == 200) {
-        _response = 'Welcome, $username';
-        _userinfo = result['userdata'];
-      } else if (statusCode == 429) {
-        _response = "Too many requests. Wait 1 minute";
-      } else {
-        _response = 'API Key Invalid: $statusCode';
-      }
+      // 只有「窄屏、从主界面新开一层」才做滑入。换题和窗口拉伸都不重播。
+      _animateEntrance = !wide && _paneProblemId == null;
+      _animatingProblem = _animateEntrance;
+      _paneProblemId = id;
     });
   }
 
-  Future<void> _logout() async {
-    if((await checkLogin()) != null){
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove('apiKey');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Successfully logged out')),
-      );
-    }
-    else popLogin(context);
+  void _onProblemEntranceSettled() {
+    if (!mounted || !_animatingProblem) return;
+    setState(() => _animatingProblem = false);
   }
 
-  void _gotoProblem([String? id]) {
-    final String problemId = (id ?? "");
-    print("problem id:" + problemId);
-    if (problemId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a problem ID')),
-      );
-      return;
+  Future<void> _closeProblem() async {
+    if (_paneProblemId == null || _closing) return;
+    final wide = _isWide(context);
+    if (!wide && _slideKey.currentState != null) {
+      _closing = true;
+      setState(() => _animatingProblem = true);
+      try {
+        await _slideKey.currentState?.reverse();
+      } finally {
+        _closing = false;
+      }
     }
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProblemPage(problemId: problemId),
-      ),
-    );
+    if (!mounted) return;
+    setState(() {
+      _paneProblemId = null;
+      _animatingProblem = false;
+      _animateEntrance = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<String> _tabTitles = const [
-      'TopsOJ',       // index 0
-      'Problems',     // index 1
-      'Rankings',
-    ];
-    final currentIndex = ref.watch(
-      mainPageProvider.select((state) => state.index),
-    );
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width >= kMainSplitMinWidth;
+    final leftWidth = size.width * 0.3;
+    final rightWidth = size.width - leftWidth;
+    // 窄屏题目滑入/滑出时主界面留在下面，动画结束后再停掉它的绘制。
+    final hideMain =
+        !wide && _paneProblemId != null && !_animatingProblem && !_closing;
 
-    return LiquidGlassScope(
-      repaintBoundaryKey: _backgroundKey,
-      child: Scaffold(
-        extendBody: true, // 核心：让 body 延伸到底部导航栏下方
-        extendBodyBehindAppBar: true, // 核心：让 body 延伸到顶部 AppBar 下方
-        drawer: Drawer(
-          width: max(min(MediaQuery.of(context).size.width * 0.75, 500), 350),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Text(
-                    _response,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-                  ),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        Text("Join date: ${_userinfo['join_date']}"),
-                        const SizedBox(height: 5),
-                        Text("Total Points: ${_userinfo['total_points']}"),
-                        const SizedBox(height: 5),
-                        Text("Streak: ${_userinfo['streak']}"),
-                        const SizedBox(height: 15),
-
-                        Card(
-                          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Weekly Leaderboard",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                              ),
-                              ..._weeklylb_render,
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        Card(
-                          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Problems you might find challenging",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                              ),
-                              ..._precommend_render,
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        onDrawerChanged: (isOpened) {
-          if (isOpened) {
-            _makeRequest();
+    return MainSplitScope(
+      onOpenProblem: _openProblem,
+      child: WillPopScope(
+        onWillPop: () async {
+          if (_paneProblemId != null) {
+            _closeProblem();
+            return false;
           }
+          return true;
         },
-        appBar: _buildLiquidAppBar(context, _tabTitles[currentIndex]),
-        floatingActionButton: _buildLiquidSpeedDial(context),
-        body: RepaintBoundary(
-          key: _backgroundKey,
-          child: IndexedStack(
-            index: currentIndex,
-            children: const [
-              HomePage(),
-              Problems(),
-              RankingPage(),
-            ],
-          ),
-        ),
-        bottomNavigationBar: _buildLiquidBottomNavigationBar(context, currentIndex),
-      ),
-    );
-  }
-
-  /// 完全透明的 Liquid Glass 顶部导航栏
-  PreferredSizeWidget _buildLiquidAppBar(BuildContext context, String title) {
-    final double statusBarHeight = MediaQuery.of(context).padding.top;
-    const double barHeight = 52.0;
-    const double borderRadius = barHeight / 2; // 圆角半径等于高度的一半 (26.0)
-
-    return PreferredSize(
-      preferredSize: Size.fromHeight(statusBarHeight + barHeight + 8),
-      child: Container(
-        color: Colors.transparent, // 确保背景透明
-        padding: EdgeInsets.only(
-          top: statusBarHeight + 4,
-          left: 16,
-          right: 16,
-          bottom: 4,
-        ),
-        child: LiquidGlassContainer(
-          height: barHeight,
-          borderRadius: borderRadius,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Row(
-              children: [
-                // 抽屉菜单打开按钮
-                Builder(
-                  builder: (scaffoldContext) => IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () => Scaffold.of(scaffoldContext).openDrawer(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // 页面标题
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                // 登出/个人按钮
-                IconButton(
-                  icon: const Icon(Icons.person_2_outlined),
-                  onPressed: _logout,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 完全透明的 Liquid Glass 底部导航条
-  Widget _buildLiquidBottomNavigationBar(BuildContext context, int currentIndex) {
-    const double navBarHeight = 64.0;
-    const double borderRadius = navBarHeight / 2; // 圆角半径等于高度的一半 (32.0)
-
-    final theme = Theme.of(context);
-    final selectedColor = theme.colorScheme.primary;
-    final unselectedColor = theme.colorScheme.onSurfaceVariant.withOpacity(0.6);
-
-    final items = [
-      (icon: Icons.home, label: 'Home'),
-      (icon: Icons.filter_alt_outlined, label: 'Problems'),
-      (icon: Icons.leaderboard_outlined, label: 'Rankings'),
-    ];
-
-    return Container(
-      color: Colors.transparent, // 确保无任何实体背景层
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        bottom: max(MediaQuery.of(context).padding.bottom, 12),
-        top: 4,
-      ),
-      child: LiquidGlassContainer(
-        height: navBarHeight,
-        borderRadius: borderRadius,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(items.length, (index) {
-            final isSelected = index == currentIndex;
-            final color = isSelected ? selectedColor : unselectedColor;
-
-            return Expanded(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(borderRadius),
-                onTap: () {
-                  ref.read(mainPageProvider.notifier).update((state) => (
-                    index: index,
-                    search: null,
-                    ranking_category: null,
-                  ));
-                  // 待新页面在 IndexedStack 中绘制完成后更新液态玻璃折射纹理
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (context.mounted) {
-                      LiquidGlassScope.notifyUpdate(context);
-                    }
-                  });
-                },
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      items[index].icon,
-                      color: color,
-                      size: isSelected ? 26 : 22,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      items[index].label,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        child: Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: wide ? leftWidth : size.width,
+              child: Offstage(
+                offstage: hideMain,
+                child: TickerMode(
+                  enabled: !hideMain,
+                  child: IgnorePointer(
+                    ignoring: !wide && _paneProblemId != null,
+                    child: ShellPaneActive(
+                      active: !hideMain,
+                      child: _PaneFrame(
+                        width: wide ? leftWidth : size.width,
+                        clipRightSafe: wide,
+                        child: const MainPage(),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            );
-          }),
+            ),
+            if (wide && _paneProblemId == null)
+              Positioned(
+                left: leftWidth,
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: _PaneFrame(
+                  width: rightWidth,
+                  clipLeftSafe: true,
+                  child: const _EmptyProblemPane(),
+                ),
+              ),
+            if (_paneProblemId != null)
+              Positioned(
+                key: const ValueKey('shell-problem'),
+                left: wide ? leftWidth : 0,
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: ClipRect(
+                  child: _PaneFrame(
+                    width: wide ? rightWidth : size.width,
+                    clipLeftSafe: wide,
+                    child: _ProblemSlide(
+                      key: _slideKey,
+                      animate: _animateEntrance && !wide,
+                      onSettled: _onProblemEntranceSettled,
+                      child: ProblemPage(
+                        key: ValueKey<String>(_paneProblemId!),
+                        problemId: _paneProblemId!,
+                        shell: ProblemShellLink(
+                          onClose: () {
+                            _closeProblem();
+                          },
+                          onOpenProblem: _openProblem,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (wide)
+              Positioned(
+                left: leftWidth,
+                top: 0,
+                bottom: 0,
+                width: 1,
+                child: const IgnorePointer(
+                  child: ColoredBox(color: Color(0x14000000)),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
+}
 
-  /// Liquid Glass 样式的 SpeedDial (Floating Action Button)
-  Widget _buildLiquidSpeedDial(BuildContext context) {
-    const double fabSize = 56.0;
-    const double fabRadius = fabSize / 2; // 圆形 (28.0)
+/// 把一栏的 [MediaQuery.size] 收成这一栏自己的宽度。
+/// 主界面里的抽屉、题目列表的底栏间距都读的是 size，不收的话会按整窗来排。
+class _PaneFrame extends StatelessWidget {
+  final double width;
+  final bool clipLeftSafe;
+  final bool clipRightSafe;
+  final Widget child;
 
-    const double childSize = 48.0;
-    const double childRadius = childSize / 2; // 圆形 (24.0)
+  const _PaneFrame({
+    required this.width,
+    required this.child,
+    this.clipLeftSafe = false,
+    this.clipRightSafe = false,
+  });
 
-    return SpeedDial(
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      overlayColor: Theme.of(context).colorScheme.secondary,
-      overlayOpacity: 0.25,
-      direction: SpeedDialDirection.up,
-      animationCurve: Curves.easeInOutCubic,
-      spacing: 8,
-      spaceBetweenChildren: 12,
-      closeManually: false,
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    var padding = mq.padding;
+    var viewPadding = mq.viewPadding;
+    if (clipLeftSafe) {
+      padding = padding.copyWith(left: 0);
+      viewPadding = viewPadding.copyWith(left: 0);
+    }
+    if (clipRightSafe) {
+      padding = padding.copyWith(right: 0);
+      viewPadding = viewPadding.copyWith(right: 0);
+    }
+    return MediaQuery(
+      data: mq.copyWith(
+        size: Size(width, mq.size.height),
+        padding: padding,
+        viewPadding: viewPadding,
+      ),
+      child: child,
+    );
+  }
+}
 
-      // 主 FAB 图标 (未展开状态)
-      child: LiquidGlassContainer(
-        width: fabSize,
-        height: fabSize,
-        borderRadius: fabRadius,
-        child: const Center(
-          child: Icon(Icons.keyboard_arrow_up, color: Colors.black),
+class _EmptyProblemPane extends StatelessWidget {
+  const _EmptyProblemPane();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: scheme.surface,
+      child: Center(
+        child: Text(
+          'Select a problem',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: scheme.onSurface.withOpacity(0.35),
+          ),
         ),
       ),
+    );
+  }
+}
 
-      // 主 FAB 图标 (已展开状态)
-      activeChild: LiquidGlassContainer(
-        width: fabSize,
-        height: fabSize,
-        borderRadius: fabRadius,
-        child: const Center(
-          child: Icon(Icons.close, color: Colors.black),
-        ),
-      ),
+class _ProblemSlide extends StatefulWidget {
+  final bool animate;
+  final VoidCallback onSettled;
+  final Widget child;
 
-      // 弹出子按钮列表
-      children: [
-        SpeedDialChild(
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          label: '2025 Wrap',
-          labelBackgroundColor: Colors.white.withOpacity(0.75),
-          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
-          child: LiquidGlassContainer(
-            width: childSize,
-            height: childSize,
-            borderRadius: childRadius,
-            child: const Center(
-              child: Icon(Icons.bar_chart, color: Colors.black),
-            ),
-          ),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => wrap2025.AnnualReportPage()),
-            );
-          },
-        ),
-        SpeedDialChild(
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          label: 'Math PvP',
-          labelBackgroundColor: Colors.white.withOpacity(0.75),
-          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
-          child: LiquidGlassContainer(
-            width: childSize,
-            height: childSize,
-            borderRadius: childRadius,
-            child: const Center(
-              child: Icon(Icons.sports_mma, color: Colors.black),
-            ),
-          ),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => BattlePage()),
-            );
-          },
-        ),
-        SpeedDialChild(
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          label: 'Cached Problems',
-          labelBackgroundColor: Colors.white.withOpacity(0.75),
-          labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
-          child: LiquidGlassContainer(
-            width: childSize,
-            height: childSize,
-            borderRadius: childRadius,
-            child: const Center(
-              child: Icon(Icons.save, color: Colors.black),
-            ),
-          ),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => CachedPage()),
-            );
-          },
-        ),
-      ],
+  const _ProblemSlide({
+    super.key,
+    required this.animate,
+    required this.onSettled,
+    required this.child,
+  });
+
+  @override
+  State<_ProblemSlide> createState() => _ProblemSlideState();
+}
+
+class _ProblemSlideState extends State<_ProblemSlide>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final CurvedAnimation _curve;
+  late final Animation<Offset> _offset;
+  bool _listening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    _offset = Tween<Offset>(
+      begin: const Offset(1, 0),
+      end: Offset.zero,
+    ).animate(_curve);
+    if (widget.animate) {
+      _controller.addStatusListener(_onStatus);
+      _listening = true;
+      _controller.forward();
+    } else {
+      _controller.value = 1;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onSettled();
+      });
+    }
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onSettled();
+    });
+  }
+
+  @override
+  void didUpdateWidget(_ProblemSlide oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 窗口拉宽时右栏直接到位。正在关闭（reverse）时不能把进度打回去。
+    if (!widget.animate &&
+        _controller.status != AnimationStatus.reverse &&
+        _controller.value != 1) {
+      _controller.value = 1;
+    }
+  }
+
+  Future<void> reverse() async {
+    if (_controller.value == 0) return;
+    try {
+      await _controller.reverse();
+    } catch (_) {
+      // 动画中途壳层被拆掉时，controller 会先 dispose。
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_listening) {
+      _controller.removeStatusListener(_onStatus);
+    }
+    _curve.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _offset,
+      child: widget.child,
     );
   }
 }

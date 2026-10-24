@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:TopsOJ/index_providers.dart';
+import 'package:TopsOJ/main_page/index_providers.dart';
 import 'package:TopsOJ/basic_func.dart';
 import "package:TopsOJ/perfect_square.dart";
 import "package:TopsOJ/mental_math.dart";
